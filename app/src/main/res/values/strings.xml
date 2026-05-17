@@ -34,7 +34,7 @@
     <string name="accent_indigo">Indigo</string>
     <string name="accent_amber">Amber</string>
     <string name="current_status">Current status</string>
-    <string name="waiting_for_headphones">Waiting for headphones connection...</string>
+    <string name="waiting_for_headphones">Headphones are not connected</string>
     <string name="last_known_battery_title">Last known battery level:</string>
     <string name="last_known_device_line">Device: %1$s</string>
     <string name="device_connected_only">%1$s connected.</string>

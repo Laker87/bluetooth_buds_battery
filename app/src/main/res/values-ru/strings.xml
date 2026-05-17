@@ -34,7 +34,7 @@
     <string name="accent_indigo">Индиго</string>
     <string name="accent_amber">Янтарный</string>
     <string name="current_status">Текущий статус</string>
-    <string name="waiting_for_headphones">Ожидание подключения наушников...</string>
+    <string name="waiting_for_headphones">Наушники не подключены</string>
     <string name="last_known_battery_title">Последний известный уровень заряда:</string>
     <string name="last_known_device_line">Устройство: %1$s</string>
     <string name="device_connected_only">%1$s подключены.</string>
