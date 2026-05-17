@@ -29,6 +29,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -629,7 +630,7 @@ private fun HeadphoneHistoryCard(
                     fontSize = 16.sp,
                 ),
             )
-            history.forEach { entry ->
+            history.forEachIndexed { index, entry ->
                 val battery = entry.lastBatteryLevel?.let { "$it%" }
                     ?: stringResource(R.string.battery_not_available)
                 val disconnectedAt = entry.lastDisconnectedAt?.let { formatHistoryDate(it) }
@@ -649,6 +650,14 @@ private fun HeadphoneHistoryCard(
                     Text(
                         text = stringResource(R.string.history_last_disconnected, disconnectedAt),
                         style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+                if (index < history.lastIndex) {
+                    HorizontalDivider(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 6.dp),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.16f),
                     )
                 }
             }
