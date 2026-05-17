@@ -14,7 +14,6 @@
     <string name="permissions_needed_rationale">Без разрешений Bluetooth, геолокации и уведомлений приложение не сможет читать BLE-данные Beats и показывать уведомления Fast Pair.</string>
     <string name="grant_permissions">Выдать разрешения</string>
     <string name="monitoring_enabled">Мониторинг включен</string>
-    <string name="show_overlay_when_open">Показывать карточку Fast Pair при открытом приложении</string>
     <string name="settings_appearance">Внешний вид</string>
     <string name="settings_theme">Тема</string>
     <string name="settings_accent_color">Акцентный цвет</string>

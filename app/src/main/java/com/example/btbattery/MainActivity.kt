@@ -65,7 +65,6 @@ import com.example.btbattery.core.AppPreferences
 import com.example.btbattery.core.AppTheme
 import com.example.btbattery.core.HeadphoneHistoryEntry
 import com.example.btbattery.domain.model.BluetoothBatterySnapshot
-import com.example.btbattery.presentation.FastPairOverlay
 import com.example.btbattery.presentation.MainViewModel
 import com.example.btbattery.presentation.MainUiState
 import androidx.compose.material.icons.Icons
@@ -133,14 +132,12 @@ class MainActivity : AppCompatActivity() {
                         viewModel.onMonitoringChanged(this@MainActivity, enabled)
                     }
                 },
-                onShowInAppFastPairChanged = viewModel::onShowInAppFastPairChanged,
                 onThemeChanged = viewModel::onThemeChanged,
                 onLanguageChanged = { language ->
                     viewModel.onLanguageChanged(language)
                     applyAppLanguage(language)
                 },
                 onAccentColorChanged = viewModel::onAccentColorChanged,
-                onDismissFastPair = viewModel::dismissFastPairCard,
             )
         }
     }
@@ -183,11 +180,9 @@ private fun BluetoothBatteryApp(
     showPermissionsRationale: Boolean,
     onRequestPermissions: () -> Unit,
     onMonitoringChanged: (Boolean) -> Unit,
-    onShowInAppFastPairChanged: (Boolean) -> Unit,
     onThemeChanged: (AppTheme) -> Unit,
     onLanguageChanged: (AppLanguage) -> Unit,
     onAccentColorChanged: (AppAccentColor) -> Unit,
-    onDismissFastPair: () -> Unit,
 ) {
     BTBatteryTheme(
         appTheme = uiState.appTheme,
@@ -262,13 +257,6 @@ private fun BluetoothBatteryApp(
                     onCheckedChange = onMonitoringChanged,
                 )
 
-                SettingSwitchCard(
-                    title = stringResource(R.string.show_overlay_when_open),
-                    checked = uiState.showInAppFastPair,
-                    enabled = true,
-                    onCheckedChange = onShowInAppFastPairChanged,
-                )
-
                 AppearanceAndLanguageCard(
                     selectedTheme = uiState.appTheme,
                     selectedLanguage = uiState.appLanguage,
@@ -288,12 +276,6 @@ private fun BluetoothBatteryApp(
                 )
             }
         }
-
-        FastPairOverlay(
-            visible = uiState.showFastPairCard,
-            snapshot = uiState.lastSnapshot,
-            onDismiss = onDismissFastPair,
-        )
     }
     }
 }

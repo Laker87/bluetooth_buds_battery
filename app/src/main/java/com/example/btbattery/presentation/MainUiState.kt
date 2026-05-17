@@ -8,7 +8,6 @@ import com.example.btbattery.domain.model.BluetoothBatterySnapshot
 
 data class MainUiState(
     val monitoringEnabled: Boolean = false,
-    val showInAppFastPair: Boolean = true,
     val appTheme: AppTheme = AppTheme.LIGHT,
     val appLanguage: AppLanguage = AppLanguage.ENGLISH,
     val appAccentColor: AppAccentColor = AppAccentColor.BLUE,
@@ -16,5 +15,4 @@ data class MainUiState(
     val lastKnownSnapshot: BluetoothBatterySnapshot? = null,
     val disconnectedSinceMillis: Long? = null,
     val headphoneHistory: List<HeadphoneHistoryEntry> = emptyList(),
-    val showFastPairCard: Boolean = false,
 )

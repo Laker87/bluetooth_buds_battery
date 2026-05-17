@@ -12,7 +12,6 @@ import com.example.btbattery.core.AppTheme
 import com.example.btbattery.core.FastPairEventBus
 import com.example.btbattery.domain.model.BluetoothBatterySnapshot
 import com.example.btbattery.service.BluetoothBatteryService
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,7 +24,6 @@ class MainViewModel(
     private val _uiState = MutableStateFlow(
         MainUiState(
             monitoringEnabled = appPreferences.monitoringEnabled,
-            showInAppFastPair = appPreferences.showInAppFastPair,
             appTheme = appPreferences.appTheme,
             appLanguage = appPreferences.appLanguage,
             appAccentColor = appPreferences.appAccentColor,
@@ -59,10 +57,6 @@ class MainViewModel(
                         lastKnownSnapshot = lastKnownSnapshot,
                         disconnectedSinceMillis = disconnectedSinceMillis,
                         headphoneHistory = state.headphoneHistory,
-                        showFastPairCard = state.showInAppFastPair && shouldShowFastPairCard(
-                            previous = state.lastSnapshot,
-                            current = merged,
-                        ),
                     )
                 }
                 _uiState.value.lastKnownSnapshot?.let { appPreferences.lastKnownSnapshot = it }
@@ -82,10 +76,6 @@ class MainViewModel(
                     lastDisconnectedAt = disconnectedAt,
                 )
                 _uiState.update { state -> state.copy(headphoneHistory = appPreferences.headphoneHistory) }
-                if (_uiState.value.showFastPairCard) {
-                    delay(6500)
-                    _uiState.update { state -> state.copy(showFastPairCard = false) }
-                }
             }
         }
     }
@@ -114,15 +104,6 @@ class MainViewModel(
         context.startService(serviceIntent)
     }
 
-    fun onShowInAppFastPairChanged(enabled: Boolean) {
-        appPreferences.showInAppFastPair = enabled
-        _uiState.update { it.copy(showInAppFastPair = enabled) }
-    }
-
-    fun dismissFastPairCard() {
-        _uiState.update { it.copy(showFastPairCard = false) }
-    }
-
     fun onThemeChanged(theme: AppTheme) {
         appPreferences.appTheme = theme
         _uiState.update { it.copy(appTheme = theme) }
@@ -149,20 +130,6 @@ class MainViewModel(
             rightLevel = current.rightLevel ?: previous.rightLevel,
             caseLevel = current.caseLevel ?: previous.caseLevel,
         )
-    }
-
-    private fun shouldShowFastPairCard(
-        previous: BluetoothBatterySnapshot?,
-        current: BluetoothBatterySnapshot,
-    ): Boolean {
-        if (!current.isConnected || current.primaryLevel == null) return false
-        if (previous == null || !previous.isSameUserVisibleDevice(current)) return true
-        if (!previous.isConnected && current.isConnected) return true
-        if (previous.primaryLevel != current.primaryLevel) return true
-        if (previous.leftLevel != current.leftLevel) return true
-        if (previous.rightLevel != current.rightLevel) return true
-        if (previous.caseLevel != current.caseLevel) return true
-        return false
     }
 
     private fun BluetoothBatterySnapshot.isSameUserVisibleDevice(
