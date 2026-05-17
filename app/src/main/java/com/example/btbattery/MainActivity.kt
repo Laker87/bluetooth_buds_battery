@@ -1,0 +1,794 @@
+package com.example.btbattery
+
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import android.os.Bundle
+import androidx.activity.compose.setContent
+import androidx.activity.compose.BackHandler
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.core.os.LocaleListCompat
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.btbattery.core.AppLanguage
+import com.example.btbattery.core.AppAccentColor
+import com.example.btbattery.core.AppPreferences
+import com.example.btbattery.core.AppTheme
+import com.example.btbattery.core.HeadphoneHistoryEntry
+import com.example.btbattery.domain.model.BluetoothBatterySnapshot
+import com.example.btbattery.presentation.FastPairOverlay
+import com.example.btbattery.presentation.MainViewModel
+import com.example.btbattery.presentation.MainUiState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Settings
+import java.text.DateFormat
+import java.util.Date
+
+class MainActivity : AppCompatActivity() {
+
+    private val viewModel by viewModels<MainViewModel> {
+        object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return MainViewModel(AppPreferences(applicationContext)) as T
+            }
+        }
+    }
+
+    private val permissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { grantMap ->
+        val denied = grantMap.filterValues { granted -> !granted }.keys
+        hasAllPermissions = denied.isEmpty()
+        showPermissionsRationale = denied.any { shouldShowRequestPermissionRationale(it) }
+        if (hasAllPermissions && pendingEnableMonitoringAfterPermission) {
+            pendingEnableMonitoringAfterPermission = false
+            viewModel.onMonitoringChanged(this, true)
+        }
+    }
+
+    private var hasAllPermissions by mutableStateOf(false)
+    private var showPermissionsRationale by mutableStateOf(false)
+    private var pendingEnableMonitoringAfterPermission = false
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        applyAppLanguage(AppPreferences(applicationContext).appLanguage)
+        updatePermissionState()
+
+        setContent {
+            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+            LaunchedEffect(Unit) {
+                updatePermissionState()
+            }
+            LaunchedEffect(uiState.monitoringEnabled, hasAllPermissions) {
+                if (uiState.monitoringEnabled && hasAllPermissions) {
+                    // Keep monitoring alive without forcing foreground notification on app launch.
+                    viewModel.ensureMonitoringRunning(this@MainActivity)
+                }
+            }
+
+            BluetoothBatteryApp(
+                uiState = uiState,
+                hasAllPermissions = hasAllPermissions,
+                showPermissionsRationale = showPermissionsRationale,
+                onRequestPermissions = { permissionLauncher.launch(requiredPermissions()) },
+                onMonitoringChanged = { enabled ->
+                    if (enabled && !hasAllPermissions) {
+                        pendingEnableMonitoringAfterPermission = true
+                        permissionLauncher.launch(requiredPermissions())
+                    } else {
+                        pendingEnableMonitoringAfterPermission = false
+                        viewModel.onMonitoringChanged(this@MainActivity, enabled)
+                    }
+                },
+                onShowInAppFastPairChanged = viewModel::onShowInAppFastPairChanged,
+                onThemeChanged = viewModel::onThemeChanged,
+                onLanguageChanged = { language ->
+                    viewModel.onLanguageChanged(language)
+                    applyAppLanguage(language)
+                },
+                onAccentColorChanged = viewModel::onAccentColorChanged,
+                onDismissFastPair = viewModel::dismissFastPairCard,
+            )
+        }
+    }
+
+    private fun updatePermissionState() {
+        val permissions = requiredPermissions()
+        val denied = permissions.filter { permission ->
+            ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED
+        }
+        hasAllPermissions = denied.isEmpty()
+        showPermissionsRationale = denied.any { shouldShowRequestPermissionRationale(it) }
+    }
+
+    private fun requiredPermissions(): Array<String> {
+        val permissions = mutableListOf(
+            Manifest.permission.BLUETOOTH_CONNECT,
+            Manifest.permission.BLUETOOTH_SCAN,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissions += Manifest.permission.POST_NOTIFICATIONS
+        }
+        return permissions.toTypedArray()
+    }
+
+    private fun applyAppLanguage(language: AppLanguage) {
+        val tag = when (language) {
+            AppLanguage.ENGLISH -> "en"
+            AppLanguage.RUSSIAN -> "ru"
+        }
+        AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(tag))
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+private fun BluetoothBatteryApp(
+    uiState: MainUiState,
+    hasAllPermissions: Boolean,
+    showPermissionsRationale: Boolean,
+    onRequestPermissions: () -> Unit,
+    onMonitoringChanged: (Boolean) -> Unit,
+    onShowInAppFastPairChanged: (Boolean) -> Unit,
+    onThemeChanged: (AppTheme) -> Unit,
+    onLanguageChanged: (AppLanguage) -> Unit,
+    onAccentColorChanged: (AppAccentColor) -> Unit,
+    onDismissFastPair: () -> Unit,
+) {
+    BTBatteryTheme(
+        appTheme = uiState.appTheme,
+        appAccentColor = uiState.appAccentColor,
+    ) {
+    var isSettingsOpen by rememberSaveable { mutableStateOf(false) }
+    BackHandler(enabled = isSettingsOpen) {
+        isSettingsOpen = false
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = if (isSettingsOpen) {
+                            stringResource(R.string.settings_title)
+                        } else {
+                            stringResource(R.string.app_name)
+                        },
+                    )
+                },
+                navigationIcon = {
+                    if (isSettingsOpen) {
+                        IconButton(onClick = { isSettingsOpen = false }) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowBack,
+                                contentDescription = stringResource(R.string.back),
+                            )
+                        }
+                    }
+                },
+                actions = {
+                    if (!isSettingsOpen) {
+                        IconButton(onClick = { isSettingsOpen = true }) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = stringResource(R.string.settings_title),
+                            )
+                        }
+                    }
+                },
+                colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+                    containerColor = appTopBarContainerColor(),
+                    scrolledContainerColor = appTopBarContainerColor(),
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                ),
+            )
+        },
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            if (isSettingsOpen) {
+                if (!hasAllPermissions) {
+                    PermissionsCard(
+                        showRationale = showPermissionsRationale,
+                        onRequestPermissions = onRequestPermissions,
+                    )
+                }
+
+                SettingSwitchCard(
+                    title = stringResource(R.string.monitoring_enabled),
+                    checked = uiState.monitoringEnabled,
+                    enabled = hasAllPermissions || !uiState.monitoringEnabled,
+                    onCheckedChange = onMonitoringChanged,
+                )
+
+                SettingSwitchCard(
+                    title = stringResource(R.string.show_overlay_when_open),
+                    checked = uiState.showInAppFastPair,
+                    enabled = true,
+                    onCheckedChange = onShowInAppFastPairChanged,
+                )
+
+                AppearanceAndLanguageCard(
+                    selectedTheme = uiState.appTheme,
+                    selectedLanguage = uiState.appLanguage,
+                    selectedAccentColor = uiState.appAccentColor,
+                    onThemeChanged = onThemeChanged,
+                    onLanguageChanged = onLanguageChanged,
+                    onAccentColorChanged = onAccentColorChanged,
+                )
+            } else {
+                StatusCard(
+                    snapshot = uiState.lastSnapshot,
+                    lastKnownSnapshot = uiState.lastKnownSnapshot,
+                    disconnectedSinceMillis = uiState.disconnectedSinceMillis,
+                )
+                HeadphoneHistoryCard(
+                    history = uiState.headphoneHistory,
+                )
+            }
+        }
+
+        FastPairOverlay(
+            visible = uiState.showFastPairCard,
+            snapshot = uiState.lastSnapshot,
+            onDismiss = onDismissFastPair,
+        )
+    }
+    }
+}
+
+@Composable
+private fun PermissionsCard(
+    showRationale: Boolean,
+    onRequestPermissions: () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.permissions_needed_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = if (showRationale) {
+                    stringResource(R.string.permissions_needed_rationale)
+                } else {
+                    stringResource(R.string.permissions_needed_message)
+                },
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Button(onClick = onRequestPermissions) {
+                Text(text = stringResource(R.string.grant_permissions))
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppearanceAndLanguageCard(
+    selectedTheme: AppTheme,
+    selectedLanguage: AppLanguage,
+    selectedAccentColor: AppAccentColor,
+    onThemeChanged: (AppTheme) -> Unit,
+    onLanguageChanged: (AppLanguage) -> Unit,
+    onAccentColorChanged: (AppAccentColor) -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.settings_appearance),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            SelectionDropdownRow(
+                title = stringResource(R.string.settings_theme),
+                value = when (selectedTheme) {
+                    AppTheme.LIGHT -> stringResource(R.string.theme_light)
+                    AppTheme.DARK -> stringResource(R.string.theme_dark)
+                },
+                options = listOf(
+                    DropdownOption(
+                        label = stringResource(R.string.theme_light),
+                        enabled = true,
+                        onClick = { onThemeChanged(AppTheme.LIGHT) },
+                    ),
+                    DropdownOption(
+                        label = stringResource(R.string.theme_dark),
+                        enabled = true,
+                        onClick = { onThemeChanged(AppTheme.DARK) },
+                    ),
+                ),
+            )
+            SelectionDropdownRow(
+                title = stringResource(R.string.settings_accent_color),
+                value = when (selectedAccentColor) {
+                    AppAccentColor.BLUE -> stringResource(R.string.accent_blue)
+                    AppAccentColor.GREEN -> stringResource(R.string.accent_green)
+                    AppAccentColor.ORANGE -> stringResource(R.string.accent_orange)
+                    AppAccentColor.PURPLE -> stringResource(R.string.accent_purple)
+                    AppAccentColor.RED -> stringResource(R.string.accent_red)
+                    AppAccentColor.PINK -> stringResource(R.string.accent_pink)
+                    AppAccentColor.TEAL -> stringResource(R.string.accent_teal)
+                    AppAccentColor.CYAN -> stringResource(R.string.accent_cyan)
+                    AppAccentColor.INDIGO -> stringResource(R.string.accent_indigo)
+                    AppAccentColor.AMBER -> stringResource(R.string.accent_amber)
+                },
+                options = listOf(
+                    DropdownOption(
+                        label = stringResource(R.string.accent_blue),
+                        enabled = true,
+                        onClick = { onAccentColorChanged(AppAccentColor.BLUE) },
+                    ),
+                    DropdownOption(
+                        label = stringResource(R.string.accent_green),
+                        enabled = true,
+                        onClick = { onAccentColorChanged(AppAccentColor.GREEN) },
+                    ),
+                    DropdownOption(
+                        label = stringResource(R.string.accent_orange),
+                        enabled = true,
+                        onClick = { onAccentColorChanged(AppAccentColor.ORANGE) },
+                    ),
+                    DropdownOption(
+                        label = stringResource(R.string.accent_purple),
+                        enabled = true,
+                        onClick = { onAccentColorChanged(AppAccentColor.PURPLE) },
+                    ),
+                    DropdownOption(
+                        label = stringResource(R.string.accent_red),
+                        enabled = true,
+                        onClick = { onAccentColorChanged(AppAccentColor.RED) },
+                    ),
+                    DropdownOption(
+                        label = stringResource(R.string.accent_pink),
+                        enabled = true,
+                        onClick = { onAccentColorChanged(AppAccentColor.PINK) },
+                    ),
+                    DropdownOption(
+                        label = stringResource(R.string.accent_teal),
+                        enabled = true,
+                        onClick = { onAccentColorChanged(AppAccentColor.TEAL) },
+                    ),
+                    DropdownOption(
+                        label = stringResource(R.string.accent_cyan),
+                        enabled = true,
+                        onClick = { onAccentColorChanged(AppAccentColor.CYAN) },
+                    ),
+                    DropdownOption(
+                        label = stringResource(R.string.accent_indigo),
+                        enabled = true,
+                        onClick = { onAccentColorChanged(AppAccentColor.INDIGO) },
+                    ),
+                    DropdownOption(
+                        label = stringResource(R.string.accent_amber),
+                        enabled = true,
+                        onClick = { onAccentColorChanged(AppAccentColor.AMBER) },
+                    ),
+                ),
+            )
+
+            Text(
+                text = stringResource(R.string.settings_language),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            SelectionDropdownRow(
+                title = stringResource(R.string.settings_language),
+                value = when (selectedLanguage) {
+                    AppLanguage.ENGLISH -> stringResource(R.string.language_english)
+                    AppLanguage.RUSSIAN -> stringResource(R.string.language_russian)
+                },
+                options = listOf(
+                    DropdownOption(
+                        label = stringResource(R.string.language_english),
+                        enabled = true,
+                        onClick = { onLanguageChanged(AppLanguage.ENGLISH) },
+                    ),
+                    DropdownOption(
+                        label = stringResource(R.string.language_russian),
+                        enabled = true,
+                        onClick = { onLanguageChanged(AppLanguage.RUSSIAN) },
+                    ),
+                ),
+            )
+        }
+    }
+}
+
+@Composable
+private fun BTBatteryTheme(
+    appTheme: AppTheme,
+    appAccentColor: AppAccentColor,
+    content: @Composable () -> Unit,
+) {
+    val baseScheme = when (appTheme) {
+        AppTheme.DARK -> darkColorScheme()
+        AppTheme.LIGHT -> lightColorScheme()
+    }
+    val accent = when (appAccentColor) {
+        AppAccentColor.BLUE -> Color(0xFF3B82F6)
+        AppAccentColor.GREEN -> Color(0xFF22C55E)
+        AppAccentColor.ORANGE -> Color(0xFFF59E0B)
+        AppAccentColor.PURPLE -> Color(0xFF8B5CF6)
+        AppAccentColor.RED -> Color(0xFFEF4444)
+        AppAccentColor.PINK -> Color(0xFFEC4899)
+        AppAccentColor.TEAL -> Color(0xFF14B8A6)
+        AppAccentColor.CYAN -> Color(0xFF06B6D4)
+        AppAccentColor.INDIGO -> Color(0xFF6366F1)
+        AppAccentColor.AMBER -> Color(0xFFF59E0B)
+    }
+    val colorScheme = baseScheme.copy(
+        primary = accent,
+        secondary = accent,
+        tertiary = accent,
+    )
+    MaterialTheme(
+        colorScheme = colorScheme,
+        content = content,
+    )
+}
+
+private data class DropdownOption(
+    val label: String,
+    val enabled: Boolean,
+    val onClick: () -> Unit,
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SelectionDropdownRow(
+    title: String,
+    value: String,
+    options: List<DropdownOption>,
+) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded },
+    ) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(title) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth(),
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option.label) },
+                    onClick = {
+                        if (option.enabled) {
+                            option.onClick()
+                            expanded = false
+                        }
+                    },
+                    enabled = option.enabled,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingSwitchCard(
+    title: String,
+    checked: Boolean,
+    enabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val background = MaterialTheme.colorScheme.background
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f),
+            )
+            Switch(
+                checked = checked,
+                enabled = enabled,
+                onCheckedChange = onCheckedChange,
+                colors = if (isDarkTheme) {
+                    SwitchDefaults.colors(
+                        checkedThumbColor = background,
+                        uncheckedThumbColor = background,
+                        disabledCheckedThumbColor = background.copy(alpha = 0.38f),
+                        disabledUncheckedThumbColor = background.copy(alpha = 0.38f),
+                    )
+                } else {
+                    SwitchDefaults.colors()
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun StatusCard(
+    snapshot: BluetoothBatterySnapshot?,
+    lastKnownSnapshot: BluetoothBatterySnapshot?,
+    disconnectedSinceMillis: Long?,
+) {
+    val elapsedLabel = rememberElapsedTimeLabel(disconnectedSinceMillis)
+    val isConnected = snapshot?.isConnected == true
+    val displaySnapshot = if (isConnected) snapshot else lastKnownSnapshot
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.current_status),
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                ),
+            )
+            if (!isConnected) {
+                Text(text = stringResource(R.string.waiting_for_headphones))
+                if (displaySnapshot != null) {
+                    Text(text = stringResource(R.string.last_known_device_line, displaySnapshot.deviceName))
+                }
+                if (elapsedLabel != null) {
+                    Text(text = stringResource(R.string.disconnected_time_line, elapsedLabel))
+                }
+                if (displaySnapshot != null) {
+                    Text(text = stringResource(R.string.last_known_battery_title))
+                }
+            } else {
+                Text(text = stringResource(R.string.device_connected_only, snapshot.deviceName))
+            }
+            if (displaySnapshot != null) {
+                BatteryCirclesPanel(snapshot = displaySnapshot)
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeadphoneHistoryCard(
+    history: List<HeadphoneHistoryEntry>,
+) {
+    if (history.isEmpty()) return
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.previously_connected_headphones),
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                ),
+            )
+            history.forEach { entry ->
+                val battery = entry.lastBatteryLevel?.let { "$it%" }
+                    ?: stringResource(R.string.battery_not_available)
+                val disconnectedAt = entry.lastDisconnectedAt?.let { formatHistoryDate(it) }
+                    ?: stringResource(R.string.history_date_unknown)
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        text = entry.deviceName,
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                    )
+                    Text(
+                        text = stringResource(R.string.history_last_battery, battery),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        text = stringResource(R.string.history_last_disconnected, disconnectedAt),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun rememberElapsedTimeLabel(disconnectedSinceMillis: Long?): String? {
+    if (disconnectedSinceMillis == null) return null
+    val now by produceState(initialValue = System.currentTimeMillis(), disconnectedSinceMillis) {
+        while (true) {
+            value = System.currentTimeMillis()
+            kotlinx.coroutines.delay(60_000)
+        }
+    }
+    val elapsed = (now - disconnectedSinceMillis).coerceAtLeast(0L)
+    val minutes = elapsed / 60_000
+    return when {
+        minutes < 1 -> stringResource(R.string.elapsed_just_now)
+        minutes < 60 -> stringResource(R.string.elapsed_minutes, minutes)
+        minutes < 1_440 -> stringResource(R.string.elapsed_hours, minutes / 60)
+        else -> stringResource(R.string.elapsed_days, minutes / 1_440)
+    }
+}
+
+@Composable
+private fun BatteryCirclesPanel(snapshot: BluetoothBatterySnapshot) {
+    val hasSplit = snapshot.leftLevel != null || snapshot.rightLevel != null || snapshot.caseLevel != null
+    if (hasSplit) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.Top,
+        ) {
+            BatteryCircleItem(
+                label = stringResource(R.string.left_short),
+                level = snapshot.leftLevel,
+            )
+            BatteryCircleItem(
+                label = stringResource(R.string.case_short),
+                level = snapshot.caseLevel,
+            )
+            BatteryCircleItem(
+                label = stringResource(R.string.right_short),
+                level = snapshot.rightLevel,
+            )
+        }
+    } else {
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center,
+        ) {
+            BatteryCircleItem(
+                label = stringResource(R.string.main_battery),
+                level = snapshot.primaryLevel,
+            )
+        }
+    }
+}
+
+@Composable
+private fun BatteryCircleItem(
+    label: String,
+    level: Int?,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Box(
+            modifier = Modifier.size(76.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            CircularProgressIndicator(
+                progress = { ((level ?: 0).coerceIn(0, 100)) / 100f },
+                modifier = Modifier.size(76.dp),
+                strokeWidth = 7.dp,
+                trackColor = batteryTrackColor(),
+                color = batteryProgressColor(level),
+            )
+            Text(
+                text = level?.let { "$it%" } ?: "--",
+                style = MaterialTheme.typography.titleSmall.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 18.sp,
+                ),
+                textAlign = TextAlign.Center,
+            )
+        }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+private fun batteryProgressColor(level: Int?): Color {
+    val safeLevel = level ?: return Color(0xFF4D83F6)
+    return when {
+        safeLevel <= 10 -> Color(0xFFEF4444)
+        safeLevel < 30 -> Color(0xFFF59E0B)
+        else -> Color(0xFF4D83F6)
+    }
+}
+
+@Composable
+private fun formatHistoryDate(millis: Long): String {
+    val formatter = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
+    return formatter.format(Date(millis))
+}
+
+@Composable
+private fun batteryTrackColor(): Color {
+    val scheme = MaterialTheme.colorScheme
+    val isLightTheme = scheme.background.luminance() > 0.5f
+    return if (isLightTheme) Color(0xFF8C93A2) else scheme.surfaceVariant
+}
+
+@Composable
+private fun appTopBarContainerColor(): Color {
+    val background = MaterialTheme.colorScheme.background
+    val isLightTheme = background.luminance() > 0.5f
+    return if (isLightTheme) {
+        lerp(background, Color.Black, 0.08f)
+    } else {
+        lerp(background, Color.White, 0.08f)
+    }
+}

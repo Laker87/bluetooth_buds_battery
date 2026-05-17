@@ -1,0 +1,58 @@
+package com.example.btbattery.receiver
+
+import android.bluetooth.BluetoothA2dp
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothHeadset
+import android.bluetooth.BluetoothProfile
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import androidx.core.content.ContextCompat
+import com.example.btbattery.core.AppPreferences
+import com.example.btbattery.service.BluetoothBatteryService
+
+class BluetoothConnectionReceiver : BroadcastReceiver() {
+
+    override fun onReceive(context: Context, intent: Intent) {
+        if (!AppPreferences(context).monitoringEnabled) return
+
+        val action = when {
+            isConnectEvent(intent) -> BluetoothBatteryService.ACTION_START_MONITORING
+            isUserUnlockedEvent(intent) -> BluetoothBatteryService.ACTION_BOOT_RESTORE_MONITORING
+            isBluetoothTurnedOn(intent) -> BluetoothBatteryService.ACTION_BOOT_RESTORE_MONITORING
+            else -> null
+        }
+        if (action == null) return
+
+        val serviceIntent = Intent(context, BluetoothBatteryService::class.java).apply {
+            this.action = action
+        }
+        if (action == BluetoothBatteryService.ACTION_START_MONITORING) {
+            ContextCompat.startForegroundService(context, serviceIntent)
+        } else {
+            context.startService(serviceIntent)
+        }
+    }
+
+    private fun isConnectEvent(intent: Intent): Boolean {
+        return when (intent.action) {
+            BluetoothDevice.ACTION_ACL_CONNECTED -> true
+            BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED,
+            BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED -> {
+                intent.getIntExtra(BluetoothProfile.EXTRA_STATE, -1) ==
+                    BluetoothProfile.STATE_CONNECTED
+            }
+            else -> false
+        }
+    }
+
+    private fun isBluetoothTurnedOn(intent: Intent): Boolean {
+        if (intent.action != BluetoothAdapter.ACTION_STATE_CHANGED) return false
+        return intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) == BluetoothAdapter.STATE_ON
+    }
+
+    private fun isUserUnlockedEvent(intent: Intent): Boolean {
+        return intent.action == Intent.ACTION_USER_UNLOCKED
+    }
+}

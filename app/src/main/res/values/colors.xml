@@ -1,0 +1,18 @@
+<resources>
+    <color name="fast_pair_card_background">#EAF4E8</color>
+    <color name="fast_pair_card_stroke">#D3E6D0</color>
+    <color name="fast_pair_icon_background">#2F7A3D</color>
+    <color name="fast_pair_chip_background">#DDECDC</color>
+    <color name="fast_pair_text_primary">#ECEEF3</color>
+    <color name="fast_pair_text_secondary">#B5BBC6</color>
+    <color name="fast_pair_progress">#2F7A3D</color>
+    <color name="fast_pair_progress_track">#D7E6D5</color>
+    <color name="fast_pair_ring_center">#F4F8F3</color>
+    <color name="fast_pair_ring_track">#3D4150</color>
+    <color name="fast_pair_ring_left">#4D83F6</color>
+    <color name="fast_pair_ring_case">#4D83F6</color>
+    <color name="fast_pair_ring_right">#4D83F6</color>
+    <color name="fast_pair_ring_warning">#F59E0B</color>
+    <color name="fast_pair_ring_critical">#EF4444</color>
+    <color name="launcher_bg">#DCEFD8</color>
+</resources>
