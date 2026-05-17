@@ -281,8 +281,6 @@ private fun BluetoothBatteryApp(
             } else {
                 StatusCard(
                     snapshot = uiState.lastSnapshot,
-                    lastKnownSnapshot = uiState.lastKnownSnapshot,
-                    disconnectedSinceMillis = uiState.disconnectedSinceMillis,
                 )
                 HeadphoneHistoryCard(
                     history = uiState.headphoneHistory,
@@ -581,12 +579,8 @@ private fun SettingSwitchCard(
 @Composable
 private fun StatusCard(
     snapshot: BluetoothBatterySnapshot?,
-    lastKnownSnapshot: BluetoothBatterySnapshot?,
-    disconnectedSinceMillis: Long?,
 ) {
-    val elapsedLabel = rememberElapsedTimeLabel(disconnectedSinceMillis)
     val isConnected = snapshot?.isConnected == true
-    val displaySnapshot = if (isConnected) snapshot else lastKnownSnapshot
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -601,20 +595,18 @@ private fun StatusCard(
             )
             if (!isConnected) {
                 Text(text = stringResource(R.string.waiting_for_headphones))
-                if (displaySnapshot != null) {
-                    Text(text = stringResource(R.string.last_known_device_line, displaySnapshot.deviceName))
-                }
-                if (elapsedLabel != null) {
-                    Text(text = stringResource(R.string.disconnected_time_line, elapsedLabel))
-                }
-                if (displaySnapshot != null) {
-                    Text(text = stringResource(R.string.last_known_battery_title))
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    BatteryCircleItem(
+                        label = stringResource(R.string.main_battery),
+                        level = null,
+                    )
                 }
             } else {
                 Text(text = stringResource(R.string.device_connected_only, snapshot.deviceName))
-            }
-            if (displaySnapshot != null) {
-                BatteryCirclesPanel(snapshot = displaySnapshot)
+                BatteryCirclesPanel(snapshot = snapshot)
             }
         }
     }
