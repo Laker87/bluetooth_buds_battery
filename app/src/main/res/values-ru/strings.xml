@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">BT Fast Pair Battery</string>
     <string name="settings_title">Настройки</string>
+    <string name="bluetooth_settings_title">Настройки Bluetooth</string>
     <string name="back">Назад</string>
     <string name="notification_channel_service_name">Мониторинг заряда Bluetooth</string>
     <string name="notification_channel_fast_pair_name">Уведомления Fast Pair</string>

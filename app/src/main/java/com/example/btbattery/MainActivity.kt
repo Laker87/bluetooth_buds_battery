@@ -1,9 +1,11 @@
 package com.example.btbattery
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.compose.setContent
 import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
@@ -69,6 +71,7 @@ import com.example.btbattery.presentation.MainViewModel
 import com.example.btbattery.presentation.MainUiState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Settings
 import java.text.DateFormat
 import java.util.Date
@@ -123,6 +126,9 @@ class MainActivity : AppCompatActivity() {
                 hasAllPermissions = hasAllPermissions,
                 showPermissionsRationale = showPermissionsRationale,
                 onRequestPermissions = { permissionLauncher.launch(requiredPermissions()) },
+                onOpenBluetoothSettings = {
+                    startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
+                },
                 onMonitoringChanged = { enabled ->
                     if (enabled && !hasAllPermissions) {
                         pendingEnableMonitoringAfterPermission = true
@@ -179,6 +185,7 @@ private fun BluetoothBatteryApp(
     hasAllPermissions: Boolean,
     showPermissionsRationale: Boolean,
     onRequestPermissions: () -> Unit,
+    onOpenBluetoothSettings: () -> Unit,
     onMonitoringChanged: (Boolean) -> Unit,
     onThemeChanged: (AppTheme) -> Unit,
     onLanguageChanged: (AppLanguage) -> Unit,
@@ -217,6 +224,12 @@ private fun BluetoothBatteryApp(
                 },
                 actions = {
                     if (!isSettingsOpen) {
+                        IconButton(onClick = onOpenBluetoothSettings) {
+                            Icon(
+                                imageVector = Icons.Default.Bluetooth,
+                                contentDescription = stringResource(R.string.bluetooth_settings_title),
+                            )
+                        }
                         IconButton(onClick = { isSettingsOpen = true }) {
                             Icon(
                                 imageVector = Icons.Default.Settings,
