@@ -6,9 +6,11 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import androidx.compose.animation.animateContentSize
 import androidx.activity.compose.setContent
 import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
@@ -73,6 +75,8 @@ import com.example.btbattery.presentation.MainUiState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Settings
 import java.text.DateFormat
 import java.util.Date
@@ -620,8 +624,8 @@ private fun HeadphoneHistoryCard(
     if (history.isEmpty()) return
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text(
                 text = stringResource(R.string.previously_connected_headphones),
@@ -635,29 +639,47 @@ private fun HeadphoneHistoryCard(
                     ?: stringResource(R.string.battery_not_available)
                 val disconnectedAt = entry.lastDisconnectedAt?.let { formatHistoryDate(it) }
                     ?: stringResource(R.string.history_date_unknown)
+                var expanded by rememberSaveable(entry.deviceName) { mutableStateOf(false) }
                 Column(
                     verticalArrangement = Arrangement.spacedBy(2.dp),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .animateContentSize(),
                 ) {
-                    Text(
-                        text = entry.deviceName,
-                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                    )
-                    Text(
-                        text = stringResource(R.string.history_last_battery, battery),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Text(
-                        text = stringResource(R.string.history_last_disconnected, disconnectedAt),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { expanded = !expanded }
+                            .padding(vertical = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = entry.deviceName,
+                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                        )
+                        Icon(
+                            imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                        )
+                    }
+                    if (expanded) {
+                        Text(
+                            text = stringResource(R.string.history_last_battery, battery),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Text(
+                            text = stringResource(R.string.history_last_disconnected, disconnectedAt),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
                 }
                 if (index < history.lastIndex) {
                     HorizontalDivider(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 6.dp),
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.16f),
+                            .padding(top = 4.dp),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
                     )
                 }
             }
