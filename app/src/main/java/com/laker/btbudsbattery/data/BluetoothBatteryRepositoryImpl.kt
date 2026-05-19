@@ -77,6 +77,7 @@ class BluetoothBatteryRepositoryImpl(
         }
     }
 
+    @SuppressLint("MissingPermission")
     override fun observeBatteryUpdates(): Flow<BluetoothBatterySnapshot> = callbackFlow {
         if (!hasConnectPermission()) {
             close(IllegalStateException("BLUETOOTH_CONNECT permission is missing"))
@@ -445,11 +446,15 @@ class BluetoothBatteryRepositoryImpl(
             if (bundle == null) return null
             for (key in bundle.keySet()) {
                 if (key.contains(keyword, ignoreCase = true)) {
-                    val value = bundle.get(key)
-                    if (value is Int && value in 0..100) return value
-                    if (value is String) {
-                        value.toIntOrNull()?.takeIf { it in 0..100 }?.let { return it }
-                    }
+                    runCatching { bundle.getInt(key) }
+                        .getOrNull()
+                        ?.takeIf { it in 0..100 }
+                        ?.let { return it }
+                    runCatching { bundle.getString(key) }
+                        .getOrNull()
+                        ?.toIntOrNull()
+                        ?.takeIf { it in 0..100 }
+                        ?.let { return it }
                 }
             }
             return null
@@ -496,7 +501,13 @@ class BluetoothBatteryRepositoryImpl(
 
     private fun extractVendorArgs(intent: Intent): List<String> {
         val key = BluetoothHeadset.EXTRA_VENDOR_SPECIFIC_HEADSET_EVENT_ARGS
-        val raw = intent.extras?.get(key) ?: return emptyList()
+        intent.getStringArrayExtra(key)?.let { return it.toList() }
+        intent.getIntArrayExtra(key)?.let { return it.map(Int::toString) }
+        val raw = intent.extras?.let { bundle ->
+            runCatching { bundle.getStringArray(key) }.getOrNull()
+                ?: runCatching { bundle.getIntArray(key) }.getOrNull()
+                ?: runCatching { bundle.getString(key) }.getOrNull()
+        } ?: return emptyList()
         return when (raw) {
             is Array<*> -> raw.mapNotNull { it?.toString() }
             is IntArray -> raw.map { it.toString() }
@@ -675,16 +686,34 @@ class BluetoothBatteryRepositoryImpl(
         )
     }
 
+    @SuppressLint("MissingPermission")
     private fun logSnapshot(source: String, snapshot: BluetoothBatterySnapshot) {
         val device = runCatching { bluetoothAdapter?.getRemoteDevice(snapshot.deviceAddress) }.getOrNull()
-        val headset = device?.let { runCatching { headsetProxy?.getConnectionState(it) }.getOrNull() }
-        val a2dp = device?.let { runCatching { a2dpProxy?.getConnectionState(it) }.getOrNull() }
-        val gatt = device?.let {
-            bluetoothManager?.let { manager ->
-                runCatching { manager.getConnectionState(it, BluetoothProfile.GATT) }.getOrNull()
-            }
+        val hasPermission = hasConnectPermission()
+        val headset = if (hasPermission) {
+            device?.let { runCatching { headsetProxy?.getConnectionState(it) }.getOrNull() }
+        } else {
+            null
         }
-        val metadataMain = device?.let { readBluetoothMetadata(it, "METADATA_MAIN_BATTERY") }
+        val a2dp = if (hasPermission) {
+            device?.let { runCatching { a2dpProxy?.getConnectionState(it) }.getOrNull() }
+        } else {
+            null
+        }
+        val gatt = if (hasPermission) {
+            device?.let {
+                bluetoothManager?.let { manager ->
+                    runCatching { manager.getConnectionState(it, BluetoothProfile.GATT) }.getOrNull()
+                }
+            }
+        } else {
+            null
+        }
+        val metadataMain = if (hasPermission) {
+            device?.let { readBluetoothMetadata(it, "METADATA_MAIN_BATTERY") }
+        } else {
+            null
+        }
         Log.d(
             LOG_TAG,
             "source=$source device=${snapshot.deviceName} connected=${snapshot.isConnected} " +
@@ -828,12 +857,7 @@ class BluetoothBatteryRepositoryImpl(
                     gatt?.let { closeGatt(it) }
                 }
 
-                gatt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    device.connectGatt(context, false, callback, BluetoothDevice.TRANSPORT_LE)
-                } else {
-                    @Suppress("DEPRECATION")
-                    device.connectGatt(context, false, callback)
-                }
+                gatt = device.connectGatt(context, false, callback, BluetoothDevice.TRANSPORT_LE)
             }
         }
     }

@@ -381,12 +381,7 @@ class BluetoothBatteryService : Service() {
 
     private fun hideForegroundNotificationCompletely() {
         if (isInForegroundMode) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                stopForeground(STOP_FOREGROUND_REMOVE)
-            } else {
-                @Suppress("DEPRECATION")
-                stopForeground(true)
-            }
+            stopForeground(STOP_FOREGROUND_REMOVE)
             isInForegroundMode = false
         }
         notificationManager.cancel(FAST_PAIR_NOTIFICATION_ID)

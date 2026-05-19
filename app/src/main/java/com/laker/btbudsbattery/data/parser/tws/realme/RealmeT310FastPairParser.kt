@@ -31,7 +31,7 @@ object RealmeT310FastPairParser : TwsBatteryAdvertisementParser {
 
         val payload = TwsBatteryAdvertisement(
             parserId = parserId,
-            advertisedName = result.scanRecord?.deviceName ?: runCatching { result.device.name }.getOrNull(),
+            advertisedName = result.scanRecord?.deviceName,
             leftLevel = left,
             rightLevel = right,
             caseLevel = caseLevel,

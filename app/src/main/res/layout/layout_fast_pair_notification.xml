@@ -33,6 +33,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
+        android:baselineAligned="false"
         android:gravity="center"
         android:orientation="horizontal">
 
@@ -52,6 +53,7 @@
                     android:id="@+id/leftBatteryRing"
                     android:layout_width="68dp"
                     android:layout_height="68dp"
+                    android:contentDescription="@null"
                     android:src="@drawable/ring_battery_unified" />
 
                 <TextView
@@ -89,6 +91,7 @@
                     android:id="@+id/caseBatteryRing"
                     android:layout_width="68dp"
                     android:layout_height="68dp"
+                    android:contentDescription="@null"
                     android:src="@drawable/ring_battery_unified" />
 
                 <TextView
@@ -127,6 +130,7 @@
                     android:id="@+id/rightBatteryRing"
                     android:layout_width="68dp"
                     android:layout_height="68dp"
+                    android:contentDescription="@null"
                     android:src="@drawable/ring_battery_unified" />
 
                 <TextView
@@ -167,6 +171,7 @@
                 android:id="@+id/singleBatteryRing"
                 android:layout_width="74dp"
                 android:layout_height="74dp"
+                android:contentDescription="@null"
                 android:src="@drawable/ring_battery_unified" />
 
             <TextView

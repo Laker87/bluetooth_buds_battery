@@ -16,6 +16,8 @@ class BluetoothConnectionReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (!AppPreferences(context).monitoringEnabled) return
+        val actionName = intent.action ?: return
+        if (actionName !in SUPPORTED_ACTIONS) return
 
         val action = when {
             isConnectEvent(intent) -> BluetoothBatteryService.ACTION_START_MONITORING
@@ -54,6 +56,16 @@ class BluetoothConnectionReceiver : BroadcastReceiver() {
 
     private fun isUserUnlockedEvent(intent: Intent): Boolean {
         return intent.action == Intent.ACTION_USER_UNLOCKED
+    }
+
+    private companion object {
+        val SUPPORTED_ACTIONS = setOf(
+            BluetoothDevice.ACTION_ACL_CONNECTED,
+            BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED,
+            BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED,
+            BluetoothAdapter.ACTION_STATE_CHANGED,
+            Intent.ACTION_USER_UNLOCKED,
+        )
     }
 }
 

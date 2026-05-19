@@ -38,7 +38,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
         android:layout_marginEnd="4dp"
-        android:gravity="center"
+        android:gravity="end"
         android:minWidth="48dp"
         android:textAlignment="textEnd"
         style="@style/TextAppearance.Compat.Notification.Title" />

@@ -7,7 +7,7 @@ import com.laker.btbudsbattery.core.AppTheme
 import com.laker.btbudsbattery.domain.model.BluetoothBatterySnapshot
 
 data class MainUiState(
-    val monitoringEnabled: Boolean = false,
+    val monitoringEnabled: Boolean = true,
     val appTheme: AppTheme = AppTheme.LIGHT,
     val appLanguage: AppLanguage = AppLanguage.ENGLISH,
     val appAccentColor: AppAccentColor = AppAccentColor.BLUE,
