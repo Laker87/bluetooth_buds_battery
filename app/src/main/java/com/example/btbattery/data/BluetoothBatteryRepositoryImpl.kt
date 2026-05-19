@@ -25,10 +25,10 @@ import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.os.Build
-import android.os.ParcelUuid
 import android.util.Log
 import androidx.core.content.ContextCompat
 import com.example.btbattery.core.AppPreferences
+import com.example.btbattery.data.parser.tws.TwsBatteryParserRegistry
 import com.example.btbattery.domain.model.BluetoothBatterySnapshot
 import com.example.btbattery.domain.repository.BluetoothBatteryRepository
 import kotlinx.coroutines.delay
@@ -154,13 +154,13 @@ class BluetoothBatteryRepositoryImpl(
         val scanCallback = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
                 parseAppleContinuityScan(result)?.let { deliver(it) }
-                parseFastPairServiceDataScan(result)?.let { deliver(it) }
+                parseTwsAdvertisementScan(result)?.let { deliver(it) }
             }
 
             override fun onBatchScanResults(results: MutableList<ScanResult>) {
                 results.forEach { result ->
                     parseAppleContinuityScan(result)?.let { deliver(it) }
-                    parseFastPairServiceDataScan(result)?.let { deliver(it) }
+                    parseTwsAdvertisementScan(result)?.let { deliver(it) }
                 }
             }
 
@@ -324,21 +324,15 @@ class BluetoothBatteryRepositoryImpl(
     }
 
     @SuppressLint("MissingPermission")
-    private fun parseFastPairServiceDataScan(result: ScanResult): BluetoothBatterySnapshot? {
-        val serviceData = result.scanRecord
-            ?.getServiceData(ParcelUuid(FAST_PAIR_SERVICE_UUID))
-            ?: return null
-        if (serviceData.size <= FAST_PAIR_LEVEL_INDEX_CASE) return null
-
+    private fun parseTwsAdvertisementScan(result: ScanResult): BluetoothBatterySnapshot? {
+        val parsed = TwsBatteryParserRegistry.parse(result) ?: return null
         val split = SplitLevels(
-            left = decodeFastPairLevel(serviceData[FAST_PAIR_LEVEL_INDEX_LEFT].toInt() and 0xFF),
-            right = decodeFastPairLevel(serviceData[FAST_PAIR_LEVEL_INDEX_RIGHT].toInt() and 0xFF),
-            caseLevel = decodeFastPairLevel(serviceData[FAST_PAIR_LEVEL_INDEX_CASE].toInt() and 0xFF),
+            left = parsed.leftLevel,
+            right = parsed.rightLevel,
+            caseLevel = parsed.caseLevel,
         )
-        if (split.left == null && split.right == null && split.caseLevel == null) return null
 
-        val advertisedName = result.scanRecord?.deviceName
-            ?: runCatching { result.device.name }.getOrNull()
+        val advertisedName = parsed.advertisedName
         val normalizedName = advertisedName
             ?.substringBefore("-GFP")
             ?.trim()
@@ -368,9 +362,9 @@ class BluetoothBatteryRepositoryImpl(
         cache[address] = snapshot
         Log.d(
             LOG_TAG,
-            "source=fast_pair_service_data addr=${result.device.address} name=${snapshot.deviceName} " +
+            "source=tws_adv parser=${parsed.parserId} addr=${result.device.address} name=${snapshot.deviceName} " +
                 "left=${snapshot.leftLevel} right=${snapshot.rightLevel} case=${snapshot.caseLevel} " +
-                "payload=${serviceData.toHexString()}",
+                "payload=${parsed.rawPayloadHex}",
         )
         return snapshot
     }
@@ -681,15 +675,6 @@ class BluetoothBatteryRepositoryImpl(
         )
     }
 
-    private fun decodeFastPairLevel(raw: Int): Int? {
-        if (raw in INVALID_FAST_PAIR_LEVELS) return null
-        return raw.takeIf { it in 0..100 }
-    }
-
-    private fun ByteArray.toHexString(): String {
-        return joinToString(separator = "") { byte -> "%02x".format(byte) }
-    }
-
     private fun logSnapshot(source: String, snapshot: BluetoothBatterySnapshot) {
         val device = runCatching { bluetoothAdapter?.getRemoteDevice(snapshot.deviceAddress) }.getOrNull()
         val headset = device?.let { runCatching { headsetProxy?.getConnectionState(it) }.getOrNull() }
@@ -869,11 +854,6 @@ class BluetoothBatteryRepositoryImpl(
         private const val BLE_READ_TIMEOUT_MS = 8_000L
         private val BATTERY_SERVICE_UUID: UUID = UUID.fromString("0000180f-0000-1000-8000-00805f9b34fb")
         private val BATTERY_LEVEL_UUID: UUID = UUID.fromString("00002a19-0000-1000-8000-00805f9b34fb")
-        private val FAST_PAIR_SERVICE_UUID: UUID = UUID.fromString("0000fe2c-0000-1000-8000-00805f9b34fb")
-        private val INVALID_FAST_PAIR_LEVELS = setOf(0x7F, 0xFF)
-        private const val FAST_PAIR_LEVEL_INDEX_LEFT = 10
-        private const val FAST_PAIR_LEVEL_INDEX_RIGHT = 11
-        private const val FAST_PAIR_LEVEL_INDEX_CASE = 12
         private val BLE_SCAN_FILTERS = listOf(
             ScanFilter.Builder()
                 .setManufacturerData(
@@ -882,13 +862,7 @@ class BluetoothBatteryRepositoryImpl(
                     byteArrayOf(0xFF.toByte(), 0xFF.toByte()),
                 )
                 .build(),
-            ScanFilter.Builder()
-                .setServiceData(
-                    ParcelUuid(FAST_PAIR_SERVICE_UUID),
-                    byteArrayOf(),
-                )
-                .build(),
-        )
+        ) + TwsBatteryParserRegistry.scanFilters
         private val BLE_SCAN_SETTINGS = ScanSettings.Builder()
             .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
             .setReportDelay(0L)
