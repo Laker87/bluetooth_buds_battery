@@ -125,10 +125,9 @@ class MainViewModel(
     ): BluetoothBatterySnapshot {
         if (previous == null || !previous.isSameUserVisibleDevice(current)) return current
         return current.copy(
+            // Keep only main battery fallback. Split levels are volatile and can become
+            // unavailable when case/bud disconnects; restoring previous values makes UI stale.
             batteryLevel = current.batteryLevel ?: previous.batteryLevel,
-            leftLevel = current.leftLevel ?: previous.leftLevel,
-            rightLevel = current.rightLevel ?: previous.rightLevel,
-            caseLevel = current.caseLevel ?: previous.caseLevel,
         )
     }
 

@@ -25,6 +25,7 @@ import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.os.Build
+import android.os.ParcelUuid
 import android.util.Log
 import androidx.core.content.ContextCompat
 import com.example.btbattery.core.AppPreferences
@@ -153,11 +154,13 @@ class BluetoothBatteryRepositoryImpl(
         val scanCallback = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
                 parseAppleContinuityScan(result)?.let { deliver(it) }
+                parseFastPairServiceDataScan(result)?.let { deliver(it) }
             }
 
             override fun onBatchScanResults(results: MutableList<ScanResult>) {
                 results.forEach { result ->
                     parseAppleContinuityScan(result)?.let { deliver(it) }
+                    parseFastPairServiceDataScan(result)?.let { deliver(it) }
                 }
             }
 
@@ -201,7 +204,7 @@ class BluetoothBatteryRepositoryImpl(
         }
         audioManager?.registerAudioDeviceCallback(audioCallback, null)
         runCatching {
-            bleScanner?.startScan(APPLE_SCAN_FILTERS, APPLE_SCAN_SETTINGS, scanCallback)
+            bleScanner?.startScan(BLE_SCAN_FILTERS, BLE_SCAN_SETTINGS, scanCallback)
             Log.d(LOG_TAG, "source=ble_scan started=true")
         }.onFailure {
             Log.w(LOG_TAG, "source=ble_scan started=false error=${it.javaClass.simpleName}")
@@ -260,7 +263,11 @@ class BluetoothBatteryRepositoryImpl(
             if (!isDeviceConnected(device)) return@forEach
             connectedAddresses += device.address.orEmpty()
             val previous = cache[device.address]
-            val split = metadataSplitLevels(device, previous)
+            val split = mergeSplitForConnectedSource(
+                previous = previous,
+                isConnected = true,
+                current = metadataSplitLevels(device),
+            )
             val snapshot = buildSnapshot(
                 device = device,
                 isConnected = true,
@@ -317,6 +324,58 @@ class BluetoothBatteryRepositoryImpl(
     }
 
     @SuppressLint("MissingPermission")
+    private fun parseFastPairServiceDataScan(result: ScanResult): BluetoothBatterySnapshot? {
+        val serviceData = result.scanRecord
+            ?.getServiceData(ParcelUuid(FAST_PAIR_SERVICE_UUID))
+            ?: return null
+        if (serviceData.size <= FAST_PAIR_LEVEL_INDEX_CASE) return null
+
+        val split = SplitLevels(
+            left = decodeFastPairLevel(serviceData[FAST_PAIR_LEVEL_INDEX_LEFT].toInt() and 0xFF),
+            right = decodeFastPairLevel(serviceData[FAST_PAIR_LEVEL_INDEX_RIGHT].toInt() and 0xFF),
+            caseLevel = decodeFastPairLevel(serviceData[FAST_PAIR_LEVEL_INDEX_CASE].toInt() and 0xFF),
+        )
+        if (split.left == null && split.right == null && split.caseLevel == null) return null
+
+        val advertisedName = result.scanRecord?.deviceName
+            ?: runCatching { result.device.name }.getOrNull()
+        val normalizedName = advertisedName
+            ?.substringBefore("-GFP")
+            ?.trim()
+            .orEmpty()
+        val matchedByName = normalizedName
+            .takeIf { it.isNotBlank() }
+            ?.let(::findBestKnownDeviceFor)
+        val matched = matchedByName ?: findBestConnectedClassicDevice()
+
+        val address = matched?.address ?: "blefe2c:${result.device.address}"
+        val previous = cache[address]
+        val snapshot = BluetoothBatterySnapshot(
+            deviceAddress = address,
+            deviceName = matched?.let { runCatching { it.alias ?: it.name }.getOrNull() }
+                ?: previous?.deviceName
+                ?: advertisedName
+                ?: "Fast Pair device",
+            batteryLevel = previous?.batteryLevel,
+            // Do not restore split levels from previous snapshot here.
+            // FE2C payload can explicitly signal unavailable components (e.g. case closed),
+            // and falling back to previous values causes stale case/bud levels to stick.
+            leftLevel = split.left,
+            rightLevel = split.right,
+            caseLevel = split.caseLevel,
+            isConnected = matched?.let { isDeviceConnected(it) } ?: (previous?.isConnected ?: true),
+        )
+        cache[address] = snapshot
+        Log.d(
+            LOG_TAG,
+            "source=fast_pair_service_data addr=${result.device.address} name=${snapshot.deviceName} " +
+                "left=${snapshot.leftLevel} right=${snapshot.rightLevel} case=${snapshot.caseLevel} " +
+                "payload=${serviceData.toHexString()}",
+        )
+        return snapshot
+    }
+
+    @SuppressLint("MissingPermission")
     private fun parseSnapshotFromIntent(
         device: BluetoothDevice,
         intent: Intent,
@@ -346,14 +405,18 @@ class BluetoothBatteryRepositoryImpl(
 
         val splitLevels = extractSplitLevels(intent)
         val previous = cache[device.address]
-
+        val split = mergeSplitForConnectedSource(
+            previous = previous,
+            isConnected = isConnected,
+            current = splitLevels,
+        )
         val snapshot = buildSnapshot(
             device = device,
             isConnected = isConnected,
             level = totalLevel ?: previous?.batteryLevel,
-            left = splitLevels.left ?: previous?.leftLevel,
-            right = splitLevels.right ?: previous?.rightLevel,
-            caseLevel = splitLevels.caseLevel ?: previous?.caseLevel,
+            left = split.left,
+            right = split.right,
+            caseLevel = split.caseLevel,
         )
         logSnapshot(intent.action.orEmpty(), snapshot)
         return snapshot
@@ -478,7 +541,11 @@ class BluetoothBatteryRepositoryImpl(
             .distinctBy { it.address }
             .forEach { device ->
                 val previous = cache[device.address]
-                val split = metadataSplitLevels(device, previous)
+                val split = mergeSplitForConnectedSource(
+                    previous = previous,
+                    isConnected = isConnected,
+                    current = metadataSplitLevels(device),
+                )
                 val snapshot = buildSnapshot(
                     device = device,
                     isConnected = isConnected,
@@ -566,6 +633,20 @@ class BluetoothBatteryRepositoryImpl(
             }
     }
 
+    @SuppressLint("MissingPermission")
+    private fun findBestConnectedClassicDevice(): BluetoothDevice? {
+        val connected = cache.values
+            .asSequence()
+            .filter { it.isConnected }
+            .filterNot { it.deviceAddress.startsWith("ble:") || it.deviceAddress.startsWith("blefe2c:") }
+            .mapNotNull { snapshot ->
+                runCatching { bluetoothAdapter?.getRemoteDevice(snapshot.deviceAddress) }.getOrNull()
+            }
+            .distinctBy { it.address }
+            .toList()
+        return if (connected.size == 1) connected.first() else null
+    }
+
     private fun String.normalizeDeviceName(): String {
         return lowercase().filter { it.isLetterOrDigit() }
     }
@@ -583,6 +664,30 @@ class BluetoothBatteryRepositoryImpl(
             return previousLevel
         }
         return coarseLevel
+    }
+
+    private fun mergeSplitForConnectedSource(
+        previous: BluetoothBatterySnapshot?,
+        isConnected: Boolean,
+        current: SplitLevels,
+    ): SplitLevels {
+        if (!isConnected) return current
+        val hasCurrentSplit = current.left != null || current.right != null || current.caseLevel != null
+        if (hasCurrentSplit) return current
+        return SplitLevels(
+            left = previous?.leftLevel,
+            right = previous?.rightLevel,
+            caseLevel = previous?.caseLevel,
+        )
+    }
+
+    private fun decodeFastPairLevel(raw: Int): Int? {
+        if (raw in INVALID_FAST_PAIR_LEVELS) return null
+        return raw.takeIf { it in 0..100 }
+    }
+
+    private fun ByteArray.toHexString(): String {
+        return joinToString(separator = "") { byte -> "%02x".format(byte) }
     }
 
     private fun logSnapshot(source: String, snapshot: BluetoothBatterySnapshot) {
@@ -603,14 +708,11 @@ class BluetoothBatteryRepositoryImpl(
         )
     }
 
-    private fun metadataSplitLevels(
-        device: BluetoothDevice,
-        previous: BluetoothBatterySnapshot?,
-    ): SplitLevels {
+    private fun metadataSplitLevels(device: BluetoothDevice): SplitLevels {
         return SplitLevels(
-            left = readBluetoothMetadata(device, "METADATA_UNTETHERED_LEFT_BATTERY") ?: previous?.leftLevel,
-            right = readBluetoothMetadata(device, "METADATA_UNTETHERED_RIGHT_BATTERY") ?: previous?.rightLevel,
-            caseLevel = readBluetoothMetadata(device, "METADATA_UNTETHERED_CASE_BATTERY") ?: previous?.caseLevel,
+            left = readBluetoothMetadata(device, "METADATA_UNTETHERED_LEFT_BATTERY"),
+            right = readBluetoothMetadata(device, "METADATA_UNTETHERED_RIGHT_BATTERY"),
+            caseLevel = readBluetoothMetadata(device, "METADATA_UNTETHERED_CASE_BATTERY"),
         )
     }
 
@@ -767,7 +869,12 @@ class BluetoothBatteryRepositoryImpl(
         private const val BLE_READ_TIMEOUT_MS = 8_000L
         private val BATTERY_SERVICE_UUID: UUID = UUID.fromString("0000180f-0000-1000-8000-00805f9b34fb")
         private val BATTERY_LEVEL_UUID: UUID = UUID.fromString("00002a19-0000-1000-8000-00805f9b34fb")
-        private val APPLE_SCAN_FILTERS = listOf(
+        private val FAST_PAIR_SERVICE_UUID: UUID = UUID.fromString("0000fe2c-0000-1000-8000-00805f9b34fb")
+        private val INVALID_FAST_PAIR_LEVELS = setOf(0x7F, 0xFF)
+        private const val FAST_PAIR_LEVEL_INDEX_LEFT = 10
+        private const val FAST_PAIR_LEVEL_INDEX_RIGHT = 11
+        private const val FAST_PAIR_LEVEL_INDEX_CASE = 12
+        private val BLE_SCAN_FILTERS = listOf(
             ScanFilter.Builder()
                 .setManufacturerData(
                     AppleContinuityBatteryParser.APPLE_COMPANY_ID,
@@ -775,8 +882,14 @@ class BluetoothBatteryRepositoryImpl(
                     byteArrayOf(0xFF.toByte(), 0xFF.toByte()),
                 )
                 .build(),
+            ScanFilter.Builder()
+                .setServiceData(
+                    ParcelUuid(FAST_PAIR_SERVICE_UUID),
+                    byteArrayOf(),
+                )
+                .build(),
         )
-        private val APPLE_SCAN_SETTINGS = ScanSettings.Builder()
+        private val BLE_SCAN_SETTINGS = ScanSettings.Builder()
             .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
             .setReportDelay(0L)
             .build()
