@@ -724,8 +724,19 @@ private fun HeadphoneHistoryCard(
                 ),
             )
             history.forEachIndexed { index, entry ->
-                val battery = entry.lastBatteryLevel?.let { "$it%" }
-                    ?: stringResource(R.string.battery_not_available)
+                val hasSplitBattery = entry.lastLeftLevel != null ||
+                    entry.lastRightLevel != null ||
+                    entry.lastCaseLevel != null
+                val battery = if (hasSplitBattery) {
+                    buildList {
+                        entry.lastLeftLevel?.let { add("${stringResource(R.string.left_short)} $it%") }
+                        entry.lastCaseLevel?.let { add("${stringResource(R.string.case_short)} $it%") }
+                        entry.lastRightLevel?.let { add("${stringResource(R.string.right_short)} $it%") }
+                    }.joinToString(separator = " • ")
+                } else {
+                    entry.lastBatteryLevel?.let { "$it%" }
+                        ?: stringResource(R.string.battery_not_available)
+                }
                 val disconnectedAt = entry.lastDisconnectedAt?.let { formatHistoryDate(it) }
                     ?: stringResource(R.string.history_date_unknown)
                 var expanded by rememberSaveable(entry.deviceName) { mutableStateOf(false) }

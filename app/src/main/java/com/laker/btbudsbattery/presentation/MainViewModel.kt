@@ -73,6 +73,9 @@ class MainViewModel(
                     deviceAddress = merged.deviceAddress,
                     deviceName = merged.deviceName,
                     lastBatteryLevel = _uiState.value.lastKnownSnapshot?.primaryLevel ?: merged.primaryLevel,
+                    lastLeftLevel = _uiState.value.lastKnownSnapshot?.leftLevel ?: merged.leftLevel,
+                    lastRightLevel = _uiState.value.lastKnownSnapshot?.rightLevel ?: merged.rightLevel,
+                    lastCaseLevel = _uiState.value.lastKnownSnapshot?.caseLevel ?: merged.caseLevel,
                     lastDisconnectedAt = disconnectedAt,
                 )
                 _uiState.update { state -> state.copy(headphoneHistory = appPreferences.headphoneHistory) }

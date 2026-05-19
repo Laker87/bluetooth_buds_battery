@@ -33,6 +33,9 @@ data class HeadphoneHistoryEntry(
     val deviceAddress: String,
     val deviceName: String,
     val lastBatteryLevel: Int?,
+    val lastLeftLevel: Int?,
+    val lastRightLevel: Int?,
+    val lastCaseLevel: Int?,
     val lastDisconnectedAt: Long?,
 )
 
@@ -133,6 +136,21 @@ class AppPreferences(context: Context) {
                             } else {
                                 null
                             },
+                            lastLeftLevel = if (entry.has(JSON_LAST_LEFT_LEVEL)) {
+                                entry.optInt(JSON_LAST_LEFT_LEVEL).takeIf { it in 0..100 }
+                            } else {
+                                null
+                            },
+                            lastRightLevel = if (entry.has(JSON_LAST_RIGHT_LEVEL)) {
+                                entry.optInt(JSON_LAST_RIGHT_LEVEL).takeIf { it in 0..100 }
+                            } else {
+                                null
+                            },
+                            lastCaseLevel = if (entry.has(JSON_LAST_CASE_LEVEL)) {
+                                entry.optInt(JSON_LAST_CASE_LEVEL).takeIf { it in 0..100 }
+                            } else {
+                                null
+                            },
                             lastDisconnectedAt = if (entry.has(JSON_LAST_DISCONNECTED_AT)) {
                                 entry.optLong(JSON_LAST_DISCONNECTED_AT).takeIf { it > 0L }
                             } else {
@@ -150,6 +168,9 @@ class AppPreferences(context: Context) {
                     .put(JSON_DEVICE_ADDRESS, item.deviceAddress)
                     .put(JSON_DEVICE_NAME, item.deviceName)
                 item.lastBatteryLevel?.let { entry.put(JSON_LAST_BATTERY_LEVEL, it) }
+                item.lastLeftLevel?.let { entry.put(JSON_LAST_LEFT_LEVEL, it) }
+                item.lastRightLevel?.let { entry.put(JSON_LAST_RIGHT_LEVEL, it) }
+                item.lastCaseLevel?.let { entry.put(JSON_LAST_CASE_LEVEL, it) }
                 item.lastDisconnectedAt?.let { entry.put(JSON_LAST_DISCONNECTED_AT, it) }
                 json.put(entry)
             }
@@ -160,6 +181,9 @@ class AppPreferences(context: Context) {
         deviceAddress: String,
         deviceName: String,
         lastBatteryLevel: Int?,
+        lastLeftLevel: Int?,
+        lastRightLevel: Int?,
+        lastCaseLevel: Int?,
         lastDisconnectedAt: Long?,
     ) {
         if (deviceAddress.isBlank() || deviceName.isBlank()) return
@@ -170,6 +194,9 @@ class AppPreferences(context: Context) {
             deviceAddress = deviceAddress,
             deviceName = deviceName,
             lastBatteryLevel = lastBatteryLevel ?: existing?.lastBatteryLevel,
+            lastLeftLevel = lastLeftLevel ?: existing?.lastLeftLevel,
+            lastRightLevel = lastRightLevel ?: existing?.lastRightLevel,
+            lastCaseLevel = lastCaseLevel ?: existing?.lastCaseLevel,
             lastDisconnectedAt = lastDisconnectedAt ?: existing?.lastDisconnectedAt,
         )
         if (existingIndex >= 0) current.removeAt(existingIndex)
@@ -201,6 +228,9 @@ class AppPreferences(context: Context) {
         private const val JSON_DEVICE_ADDRESS = "deviceAddress"
         private const val JSON_DEVICE_NAME = "deviceName"
         private const val JSON_LAST_BATTERY_LEVEL = "lastBatteryLevel"
+        private const val JSON_LAST_LEFT_LEVEL = "lastLeftLevel"
+        private const val JSON_LAST_RIGHT_LEVEL = "lastRightLevel"
+        private const val JSON_LAST_CASE_LEVEL = "lastCaseLevel"
         private const val JSON_LAST_DISCONNECTED_AT = "lastDisconnectedAt"
         private const val MAX_HEADPHONE_HISTORY = 20
     }

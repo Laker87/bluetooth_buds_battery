@@ -437,6 +437,9 @@ class BluetoothBatteryService : Service() {
             deviceAddress = current.deviceAddress,
             deviceName = current.deviceName,
             lastBatteryLevel = merged?.primaryLevel ?: current.primaryLevel,
+            lastLeftLevel = merged?.leftLevel ?: current.leftLevel,
+            lastRightLevel = merged?.rightLevel ?: current.rightLevel,
+            lastCaseLevel = merged?.caseLevel ?: current.caseLevel,
             lastDisconnectedAt = disconnectedAt,
         )
     }
