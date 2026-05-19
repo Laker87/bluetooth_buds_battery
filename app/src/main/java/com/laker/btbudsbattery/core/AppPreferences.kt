@@ -41,8 +41,12 @@ class AppPreferences(context: Context) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     var monitoringEnabled: Boolean
-        get() = preferences.getBoolean(KEY_MONITORING_ENABLED, false)
+        get() = preferences.getBoolean(KEY_MONITORING_ENABLED, true)
         set(value) = preferences.edit().putBoolean(KEY_MONITORING_ENABLED, value).apply()
+
+    var initialSetupCompleted: Boolean
+        get() = preferences.getBoolean(KEY_INITIAL_SETUP_COMPLETED, false)
+        set(value) = preferences.edit().putBoolean(KEY_INITIAL_SETUP_COMPLETED, value).apply()
 
     var appTheme: AppTheme
         get() = preferences.getString(KEY_APP_THEME, AppTheme.LIGHT.name)
@@ -181,6 +185,7 @@ class AppPreferences(context: Context) {
     companion object {
         private const val PREFS_NAME = "bt_fast_pair_prefs"
         private const val KEY_MONITORING_ENABLED = "monitoring_enabled"
+        private const val KEY_INITIAL_SETUP_COMPLETED = "initial_setup_completed"
         private const val KEY_APP_THEME = "app_theme"
         private const val KEY_APP_LANGUAGE = "app_language"
         private const val KEY_APP_ACCENT_COLOR = "app_accent_color"

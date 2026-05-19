@@ -14,6 +14,10 @@
     <string name="permissions_needed_message">Grant Bluetooth, location and notification permissions to enable background monitoring.</string>
     <string name="permissions_needed_rationale">Without Bluetooth, location and notification permissions the app cannot read Beats BLE battery broadcasts or show Fast Pair alerts.</string>
     <string name="grant_permissions">Grant permissions</string>
+    <string name="initial_setup_title">Initial setup</string>
+    <string name="initial_setup_message">Grant Bluetooth, location and notification permissions to start battery monitoring for your earbuds. Monitoring is enabled by default.</string>
+    <string name="initial_setup_grant">Grant permissions</string>
+    <string name="initial_setup_continue">Continue</string>
     <string name="monitoring_enabled">Monitoring enabled</string>
     <string name="settings_appearance">Appearance</string>
     <string name="settings_theme">Theme</string>

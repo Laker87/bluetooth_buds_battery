@@ -82,12 +82,13 @@ import java.text.DateFormat
 import java.util.Date
 
 class MainActivity : AppCompatActivity() {
+    private val appPreferences by lazy { AppPreferences(applicationContext) }
 
     private val viewModel by viewModels<MainViewModel> {
         object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return MainViewModel(AppPreferences(applicationContext)) as T
+                return MainViewModel(appPreferences) as T
             }
         }
     }
@@ -98,6 +99,9 @@ class MainActivity : AppCompatActivity() {
         val denied = grantMap.filterValues { granted -> !granted }.keys
         hasAllPermissions = denied.isEmpty()
         showPermissionsRationale = denied.any { shouldShowRequestPermissionRationale(it) }
+        if (hasAllPermissions && !initialSetupCompleted) {
+            completeInitialSetup()
+        }
         if (hasAllPermissions && pendingEnableMonitoringAfterPermission) {
             pendingEnableMonitoringAfterPermission = false
             viewModel.onMonitoringChanged(this, true)
@@ -107,11 +111,16 @@ class MainActivity : AppCompatActivity() {
     private var hasAllPermissions by mutableStateOf(false)
     private var showPermissionsRationale by mutableStateOf(false)
     private var pendingEnableMonitoringAfterPermission = false
+    private var initialSetupCompleted by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        applyAppLanguage(AppPreferences(applicationContext).appLanguage)
+        applyAppLanguage(appPreferences.appLanguage)
         updatePermissionState()
+        initialSetupCompleted = appPreferences.initialSetupCompleted
+        if (hasAllPermissions && !initialSetupCompleted) {
+            completeInitialSetup()
+        }
 
         setContent {
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -128,9 +137,11 @@ class MainActivity : AppCompatActivity() {
 
             BluetoothBatteryApp(
                 uiState = uiState,
+                initialSetupCompleted = initialSetupCompleted,
                 hasAllPermissions = hasAllPermissions,
                 showPermissionsRationale = showPermissionsRationale,
                 onRequestPermissions = { permissionLauncher.launch(requiredPermissions()) },
+                onCompleteInitialSetup = { completeInitialSetup() },
                 onOpenBluetoothSettings = {
                     startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
                 },
@@ -150,6 +161,14 @@ class MainActivity : AppCompatActivity() {
                 },
                 onAccentColorChanged = viewModel::onAccentColorChanged,
             )
+        }
+    }
+
+    private fun completeInitialSetup() {
+        appPreferences.initialSetupCompleted = true
+        initialSetupCompleted = true
+        if (appPreferences.monitoringEnabled && hasAllPermissions) {
+            viewModel.ensureMonitoringRunning(this)
         }
     }
 
@@ -187,9 +206,11 @@ class MainActivity : AppCompatActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 private fun BluetoothBatteryApp(
     uiState: MainUiState,
+    initialSetupCompleted: Boolean,
     hasAllPermissions: Boolean,
     showPermissionsRationale: Boolean,
     onRequestPermissions: () -> Unit,
+    onCompleteInitialSetup: () -> Unit,
     onOpenBluetoothSettings: () -> Unit,
     onMonitoringChanged: (Boolean) -> Unit,
     onThemeChanged: (AppTheme) -> Unit,
@@ -200,6 +221,16 @@ private fun BluetoothBatteryApp(
         appTheme = uiState.appTheme,
         appAccentColor = uiState.appAccentColor,
     ) {
+    if (!initialSetupCompleted) {
+        InitialSetupScreen(
+            hasAllPermissions = hasAllPermissions,
+            showRationale = showPermissionsRationale,
+            onRequestPermissions = onRequestPermissions,
+            onContinue = onCompleteInitialSetup,
+        )
+        return@BTBatteryTheme
+    }
+
     var isSettingsOpen by rememberSaveable { mutableStateOf(false) }
     BackHandler(enabled = isSettingsOpen) {
         isSettingsOpen = false
@@ -293,6 +324,59 @@ private fun BluetoothBatteryApp(
             }
         }
     }
+    }
+}
+
+@Composable
+private fun InitialSetupScreen(
+    hasAllPermissions: Boolean,
+    showRationale: Boolean,
+    onRequestPermissions: () -> Unit,
+    onContinue: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.initial_setup_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = if (showRationale) {
+                        stringResource(R.string.permissions_needed_rationale)
+                    } else {
+                        stringResource(R.string.initial_setup_message)
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Button(
+                    onClick = {
+                        if (hasAllPermissions) {
+                            onContinue()
+                        } else {
+                            onRequestPermissions()
+                        }
+                    },
+                ) {
+                    Text(
+                        text = if (hasAllPermissions) {
+                            stringResource(R.string.initial_setup_continue)
+                        } else {
+                            stringResource(R.string.initial_setup_grant)
+                        },
+                    )
+                }
+            }
+        }
     }
 }
 
