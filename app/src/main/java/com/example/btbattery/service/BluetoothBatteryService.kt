@@ -195,11 +195,11 @@ class BluetoothBatteryService : Service() {
             )
             remoteViews.setImageViewBitmap(
                 R.id.leftBatteryRing,
-                buildRoundedRingBitmap(sizeDp = 62f, level = snapshot.leftLevel),
+                buildRoundedRingBitmap(sizeDp = 68f, level = snapshot.leftLevel),
             )
             remoteViews.setImageViewBitmap(
                 R.id.rightBatteryRing,
-                buildRoundedRingBitmap(sizeDp = 62f, level = snapshot.rightLevel),
+                buildRoundedRingBitmap(sizeDp = 68f, level = snapshot.rightLevel),
             )
         } else {
             remoteViews.setViewVisibility(R.id.splitBatteryRow, View.GONE)
@@ -280,6 +280,12 @@ class BluetoothBatteryService : Service() {
             ringBitmapCache[cacheKey] = bitmap
             return bitmap
         }
+        if (clamped <= 0) {
+            // Empty state: draw a continuous track ring without any gaps.
+            canvas.drawArc(bounds, -90f, 359.9f, false, trackPaint)
+            ringBitmapCache[cacheKey] = bitmap
+            return bitmap
+        }
 
         val radius = bounds.width() / 2f
         val capCompensationDeg = if (radius > 0f) {
@@ -297,7 +303,6 @@ class BluetoothBatteryService : Service() {
         val minSweep = 0.5f
         val rawProgressSweep = drawableSweep * progressRatio
         val progressSweep = when {
-            clamped <= 0 -> 0f
             clamped >= 100 -> drawableSweep
             else -> rawProgressSweep.coerceIn(minSweep, drawableSweep - minSweep)
         }

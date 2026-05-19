@@ -24,7 +24,7 @@
             android:ellipsize="end"
             android:maxLines="1"
             android:textColor="@color/fast_pair_text_primary"
-            android:textSize="16sp"
+            android:textSize="14sp"
             android:textStyle="bold" />
     </LinearLayout>
 
@@ -45,13 +45,13 @@
             android:orientation="vertical">
 
             <FrameLayout
-                android:layout_width="62dp"
-                android:layout_height="62dp">
+                android:layout_width="68dp"
+                android:layout_height="68dp">
 
                 <ImageView
                     android:id="@+id/leftBatteryRing"
-                    android:layout_width="62dp"
-                    android:layout_height="62dp"
+                    android:layout_width="68dp"
+                    android:layout_height="68dp"
                     android:src="@drawable/ring_battery_unified" />
 
                 <TextView
@@ -70,7 +70,7 @@
                 android:layout_marginTop="3dp"
                 android:text="@string/left_bud"
                 android:textColor="@color/fast_pair_text_secondary"
-                android:textSize="11sp" />
+                android:textSize="14sp" />
         </LinearLayout>
 
         <LinearLayout
@@ -108,7 +108,7 @@
                 android:layout_marginTop="3dp"
                 android:text="@string/case_battery"
                 android:textColor="@color/fast_pair_text_secondary"
-                android:textSize="11sp" />
+                android:textSize="14sp" />
         </LinearLayout>
 
         <LinearLayout
@@ -120,13 +120,13 @@
             android:orientation="vertical">
 
             <FrameLayout
-                android:layout_width="62dp"
-                android:layout_height="62dp">
+                android:layout_width="68dp"
+                android:layout_height="68dp">
 
                 <ImageView
                     android:id="@+id/rightBatteryRing"
-                    android:layout_width="62dp"
-                    android:layout_height="62dp"
+                    android:layout_width="68dp"
+                    android:layout_height="68dp"
                     android:src="@drawable/ring_battery_unified" />
 
                 <TextView
@@ -145,7 +145,7 @@
                 android:layout_marginTop="3dp"
                 android:text="@string/right_bud"
                 android:textColor="@color/fast_pair_text_secondary"
-                android:textSize="11sp" />
+                android:textSize="14sp" />
         </LinearLayout>
     </LinearLayout>
 
