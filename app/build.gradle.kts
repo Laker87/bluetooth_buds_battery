@@ -1,15 +1,15 @@
-plugins {
+﻿plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
-    namespace = "com.example.btbattery"
+    namespace = "com.laker.btbudsbattery"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.btbattery"
+        applicationId = "com.laker.btbudsbattery"
         minSdk = 31
         targetSdk = 36
         versionCode = 1
@@ -73,3 +73,4 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
+

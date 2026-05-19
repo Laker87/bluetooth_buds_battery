@@ -1,8 +1,8 @@
-package com.example.btbattery.data.parser.tws
+﻿package com.laker.btbudsbattery.data.parser.tws
 
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
-import com.example.btbattery.data.parser.tws.realme.RealmeT310FastPairParser
+import com.laker.btbudsbattery.data.parser.tws.realme.RealmeT310FastPairParser
 
 object TwsBatteryParserRegistry {
     private val parsers: List<TwsBatteryAdvertisementParser> = listOf(
@@ -19,3 +19,4 @@ object TwsBatteryParserRegistry {
             .firstOrNull()
     }
 }
+

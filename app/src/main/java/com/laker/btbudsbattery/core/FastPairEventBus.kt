@@ -1,6 +1,6 @@
-package com.example.btbattery.core
+﻿package com.laker.btbudsbattery.core
 
-import com.example.btbattery.domain.model.BluetoothBatterySnapshot
+import com.laker.btbudsbattery.domain.model.BluetoothBatterySnapshot
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 
@@ -13,3 +13,4 @@ object FastPairEventBus {
         _events.tryEmit(snapshot)
     }
 }
+

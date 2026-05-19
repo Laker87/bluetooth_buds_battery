@@ -1,4 +1,4 @@
-package com.example.btbattery.domain.model
+﻿package com.laker.btbudsbattery.domain.model
 
 data class BluetoothBatterySnapshot(
     val deviceAddress: String,
@@ -20,3 +20,4 @@ data class BluetoothBatterySnapshot(
             return if (split.isNotEmpty()) split.average().toInt() else null
         }
 }
+

@@ -1,4 +1,4 @@
-package com.example.btbattery.receiver
+﻿package com.laker.btbudsbattery.receiver
 
 import android.bluetooth.BluetoothA2dp
 import android.bluetooth.BluetoothAdapter
@@ -9,8 +9,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import androidx.core.content.ContextCompat
-import com.example.btbattery.core.AppPreferences
-import com.example.btbattery.service.BluetoothBatteryService
+import com.laker.btbudsbattery.core.AppPreferences
+import com.laker.btbudsbattery.service.BluetoothBatteryService
 
 class BluetoothConnectionReceiver : BroadcastReceiver() {
 
@@ -56,3 +56,4 @@ class BluetoothConnectionReceiver : BroadcastReceiver() {
         return intent.action == Intent.ACTION_USER_UNLOCKED
     }
 }
+

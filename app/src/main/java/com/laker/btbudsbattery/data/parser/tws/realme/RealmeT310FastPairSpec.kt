@@ -1,4 +1,4 @@
-package com.example.btbattery.data.parser.tws.realme
+﻿package com.laker.btbudsbattery.data.parser.tws.realme
 
 import android.os.ParcelUuid
 import java.util.UUID
@@ -15,3 +15,4 @@ object RealmeT310FastPairSpec {
 
     val INVALID_LEVELS = setOf(0x7F, 0xFF)
 }
+

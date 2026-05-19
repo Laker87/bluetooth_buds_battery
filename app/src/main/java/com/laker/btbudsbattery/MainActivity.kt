@@ -1,4 +1,4 @@
-package com.example.btbattery
+﻿package com.laker.btbudsbattery
 
 import android.Manifest
 import android.content.Intent
@@ -64,14 +64,14 @@ import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.btbattery.core.AppLanguage
-import com.example.btbattery.core.AppAccentColor
-import com.example.btbattery.core.AppPreferences
-import com.example.btbattery.core.AppTheme
-import com.example.btbattery.core.HeadphoneHistoryEntry
-import com.example.btbattery.domain.model.BluetoothBatterySnapshot
-import com.example.btbattery.presentation.MainViewModel
-import com.example.btbattery.presentation.MainUiState
+import com.laker.btbudsbattery.core.AppLanguage
+import com.laker.btbudsbattery.core.AppAccentColor
+import com.laker.btbudsbattery.core.AppPreferences
+import com.laker.btbudsbattery.core.AppTheme
+import com.laker.btbudsbattery.core.HeadphoneHistoryEntry
+import com.laker.btbudsbattery.domain.model.BluetoothBatterySnapshot
+import com.laker.btbudsbattery.presentation.MainViewModel
+import com.laker.btbudsbattery.presentation.MainUiState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bluetooth
@@ -810,3 +810,4 @@ private fun appTopBarContainerColor(): Color {
         lerp(background, Color.White, 0.08f)
     }
 }
+

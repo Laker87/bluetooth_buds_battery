@@ -1,4 +1,4 @@
-package com.example.btbattery.data.parser.tws
+﻿package com.laker.btbudsbattery.data.parser.tws
 
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
@@ -22,3 +22,4 @@ interface TwsBatteryAdvertisementParser {
 
     fun parse(result: ScanResult): TwsBatteryAdvertisement?
 }
+

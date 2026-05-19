@@ -1,4 +1,4 @@
-package com.example.btbattery.data
+﻿package com.laker.btbudsbattery.data
 
 data class AppleContinuityBattery(
     val modelName: String,
@@ -100,3 +100,4 @@ object AppleContinuityBatteryParser {
         0x2017 to "Powerbeats Pro 2",
     )
 }
+

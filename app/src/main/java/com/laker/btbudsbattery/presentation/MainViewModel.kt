@@ -1,17 +1,17 @@
-package com.example.btbattery.presentation
+﻿package com.laker.btbudsbattery.presentation
 
 import android.content.Context
 import android.content.Intent
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.btbattery.core.AppLanguage
-import com.example.btbattery.core.AppAccentColor
-import com.example.btbattery.core.AppPreferences
-import com.example.btbattery.core.AppTheme
-import com.example.btbattery.core.FastPairEventBus
-import com.example.btbattery.domain.model.BluetoothBatterySnapshot
-import com.example.btbattery.service.BluetoothBatteryService
+import com.laker.btbudsbattery.core.AppLanguage
+import com.laker.btbudsbattery.core.AppAccentColor
+import com.laker.btbudsbattery.core.AppPreferences
+import com.laker.btbudsbattery.core.AppTheme
+import com.laker.btbudsbattery.core.FastPairEventBus
+import com.laker.btbudsbattery.domain.model.BluetoothBatterySnapshot
+import com.laker.btbudsbattery.service.BluetoothBatteryService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -142,3 +142,4 @@ class MainViewModel(
         return lowercase().filter { it.isLetterOrDigit() }
     }
 }
+

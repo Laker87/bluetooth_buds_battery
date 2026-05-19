@@ -1,9 +1,9 @@
-package com.example.btbattery.data.parser.tws.realme
+﻿package com.laker.btbudsbattery.data.parser.tws.realme
 
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
-import com.example.btbattery.data.parser.tws.TwsBatteryAdvertisement
-import com.example.btbattery.data.parser.tws.TwsBatteryAdvertisementParser
+import com.laker.btbudsbattery.data.parser.tws.TwsBatteryAdvertisement
+import com.laker.btbudsbattery.data.parser.tws.TwsBatteryAdvertisementParser
 
 object RealmeT310FastPairParser : TwsBatteryAdvertisementParser {
     override val parserId: String = RealmeT310FastPairSpec.PARSER_ID
@@ -49,3 +49,4 @@ object RealmeT310FastPairParser : TwsBatteryAdvertisementParser {
         return joinToString(separator = "") { byte -> "%02x".format(byte) }
     }
 }
+

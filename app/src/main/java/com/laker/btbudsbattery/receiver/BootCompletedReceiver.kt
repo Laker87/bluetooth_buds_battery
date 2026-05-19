@@ -1,10 +1,10 @@
-package com.example.btbattery.receiver
+﻿package com.laker.btbudsbattery.receiver
 
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import com.example.btbattery.core.AppPreferences
-import com.example.btbattery.service.BluetoothBatteryService
+import com.laker.btbudsbattery.core.AppPreferences
+import com.laker.btbudsbattery.service.BluetoothBatteryService
 
 class BootCompletedReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -21,3 +21,4 @@ class BootCompletedReceiver : BroadcastReceiver() {
         context.startService(startIntent)
     }
 }
+

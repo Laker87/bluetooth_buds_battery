@@ -1,4 +1,4 @@
-package com.example.btbattery.service
+﻿package com.laker.btbudsbattery.service
 
 import android.Manifest
 import android.app.Notification
@@ -19,13 +19,13 @@ import android.view.View
 import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
-import com.example.btbattery.MainActivity
-import com.example.btbattery.R
-import com.example.btbattery.core.AppPreferences
-import com.example.btbattery.core.FastPairEventBus
-import com.example.btbattery.data.BluetoothBatteryRepositoryImpl
-import com.example.btbattery.domain.model.BluetoothBatterySnapshot
-import com.example.btbattery.domain.usecase.ObserveBatteryEventsUseCase
+import com.laker.btbudsbattery.MainActivity
+import com.laker.btbudsbattery.R
+import com.laker.btbudsbattery.core.AppPreferences
+import com.laker.btbudsbattery.core.FastPairEventBus
+import com.laker.btbudsbattery.data.BluetoothBatteryRepositoryImpl
+import com.laker.btbudsbattery.domain.model.BluetoothBatterySnapshot
+import com.laker.btbudsbattery.domain.usecase.ObserveBatteryEventsUseCase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -479,9 +479,10 @@ class BluetoothBatteryService : Service() {
         private const val SERVICE_NOTIFICATION_ID = 1001
         private const val FAST_PAIR_NOTIFICATION_ID = SERVICE_NOTIFICATION_ID
 
-        const val ACTION_START_MONITORING = "com.example.btbattery.action.START_MONITORING"
-        const val ACTION_STOP_MONITORING = "com.example.btbattery.action.STOP_MONITORING"
-        const val ACTION_BOOT_RESTORE_MONITORING = "com.example.btbattery.action.BOOT_RESTORE_MONITORING"
+        const val ACTION_START_MONITORING = "com.laker.btbudsbattery.action.START_MONITORING"
+        const val ACTION_STOP_MONITORING = "com.laker.btbudsbattery.action.STOP_MONITORING"
+        const val ACTION_BOOT_RESTORE_MONITORING = "com.laker.btbudsbattery.action.BOOT_RESTORE_MONITORING"
     }
 }
+
 

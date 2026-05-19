@@ -1,7 +1,7 @@
-package com.example.btbattery.domain.usecase
+﻿package com.laker.btbudsbattery.domain.usecase
 
-import com.example.btbattery.domain.model.BluetoothBatterySnapshot
-import com.example.btbattery.domain.repository.BluetoothBatteryRepository
+import com.laker.btbudsbattery.domain.model.BluetoothBatterySnapshot
+import com.laker.btbudsbattery.domain.repository.BluetoothBatteryRepository
 import kotlinx.coroutines.flow.Flow
 
 class ObserveBatteryEventsUseCase(
@@ -9,3 +9,4 @@ class ObserveBatteryEventsUseCase(
 ) {
     operator fun invoke(): Flow<BluetoothBatterySnapshot> = repository.observeBatteryUpdates()
 }
+

@@ -1,8 +1,8 @@
-package com.example.btbattery.core
+﻿package com.laker.btbudsbattery.core
 
 import android.content.Context
 import android.content.SharedPreferences
-import com.example.btbattery.domain.model.BluetoothBatterySnapshot
+import com.laker.btbudsbattery.domain.model.BluetoothBatterySnapshot
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -216,3 +216,4 @@ private fun SharedPreferences.Editor.putIntOrRemove(key: String, value: Int?): S
 private fun SharedPreferences.Editor.putLongOrRemove(key: String, value: Long?): SharedPreferences.Editor {
     return if (value == null) remove(key) else putLong(key, value)
 }
+

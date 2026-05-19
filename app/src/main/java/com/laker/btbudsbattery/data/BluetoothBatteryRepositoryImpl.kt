@@ -1,4 +1,4 @@
-package com.example.btbattery.data
+﻿package com.laker.btbudsbattery.data
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -27,10 +27,10 @@ import android.media.AudioManager
 import android.os.Build
 import android.util.Log
 import androidx.core.content.ContextCompat
-import com.example.btbattery.core.AppPreferences
-import com.example.btbattery.data.parser.tws.TwsBatteryParserRegistry
-import com.example.btbattery.domain.model.BluetoothBatterySnapshot
-import com.example.btbattery.domain.repository.BluetoothBatteryRepository
+import com.laker.btbudsbattery.core.AppPreferences
+import com.laker.btbudsbattery.data.parser.tws.TwsBatteryParserRegistry
+import com.laker.btbudsbattery.domain.model.BluetoothBatterySnapshot
+import com.laker.btbudsbattery.domain.repository.BluetoothBatteryRepository
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -879,3 +879,4 @@ class BluetoothBatteryRepositoryImpl(
         private const val EXTRA_BATTERY_LEVEL_CASE = "android.bluetooth.device.extra.BATTERY_LEVEL_CASE"
     }
 }
+

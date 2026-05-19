@@ -1,10 +1,10 @@
-package com.example.btbattery.presentation
+﻿package com.laker.btbudsbattery.presentation
 
-import com.example.btbattery.core.AppLanguage
-import com.example.btbattery.core.AppAccentColor
-import com.example.btbattery.core.HeadphoneHistoryEntry
-import com.example.btbattery.core.AppTheme
-import com.example.btbattery.domain.model.BluetoothBatterySnapshot
+import com.laker.btbudsbattery.core.AppLanguage
+import com.laker.btbudsbattery.core.AppAccentColor
+import com.laker.btbudsbattery.core.HeadphoneHistoryEntry
+import com.laker.btbudsbattery.core.AppTheme
+import com.laker.btbudsbattery.domain.model.BluetoothBatterySnapshot
 
 data class MainUiState(
     val monitoringEnabled: Boolean = false,
@@ -16,3 +16,4 @@ data class MainUiState(
     val disconnectedSinceMillis: Long? = null,
     val headphoneHistory: List<HeadphoneHistoryEntry> = emptyList(),
 )
+
