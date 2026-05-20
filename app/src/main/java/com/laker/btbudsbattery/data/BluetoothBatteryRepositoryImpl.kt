@@ -276,6 +276,7 @@ class BluetoothBatteryRepositoryImpl(
                 left = split.left,
                 right = split.right,
                 caseLevel = split.caseLevel,
+                timestamp = if (split.fromPrevious) previous?.timestamp ?: System.currentTimeMillis() else System.currentTimeMillis(),
             )
             cache[snapshot.deviceAddress] = snapshot
             logSnapshot("profile_proxy", snapshot)
@@ -412,6 +413,7 @@ class BluetoothBatteryRepositoryImpl(
             left = split.left,
             right = split.right,
             caseLevel = split.caseLevel,
+            timestamp = if (split.fromPrevious) previous?.timestamp ?: System.currentTimeMillis() else System.currentTimeMillis(),
         )
         logSnapshot(intent.action.orEmpty(), snapshot)
         return snapshot
@@ -425,6 +427,7 @@ class BluetoothBatteryRepositoryImpl(
         left: Int?,
         right: Int?,
         caseLevel: Int?,
+        timestamp: Long = System.currentTimeMillis(),
     ): BluetoothBatterySnapshot {
         val name = device.alias ?: device.name ?: "Unknown device"
         return BluetoothBatterySnapshot(
@@ -435,6 +438,7 @@ class BluetoothBatteryRepositoryImpl(
             rightLevel = right,
             caseLevel = caseLevel,
             isConnected = isConnected,
+            timestamp = timestamp,
         )
     }
 
@@ -558,6 +562,7 @@ class BluetoothBatteryRepositoryImpl(
                     left = split.left,
                     right = split.right,
                     caseLevel = split.caseLevel,
+                    timestamp = if (split.fromPrevious) previous?.timestamp ?: System.currentTimeMillis() else System.currentTimeMillis(),
                 )
                 cache[snapshot.deviceAddress] = snapshot
                 logSnapshot("audio_devices", snapshot)
@@ -585,6 +590,7 @@ class BluetoothBatteryRepositoryImpl(
         val left: Int?,
         val right: Int?,
         val caseLevel: Int?,
+        val fromPrevious: Boolean = false,
     )
 
     @Suppress("DEPRECATION")
@@ -679,10 +685,23 @@ class BluetoothBatteryRepositoryImpl(
         if (!isConnected) return current
         val hasCurrentSplit = current.left != null || current.right != null || current.caseLevel != null
         if (hasCurrentSplit) return current
+        // Don't drag stale split values across reconnect/disconnect transitions.
+        if (previous?.isConnected != true) return current
+        // Keep split values for a short window to smooth source race/flicker.
+        val splitAgeMs = System.currentTimeMillis() - previous.timestamp
+        if (splitAgeMs > SPLIT_PRESERVE_WINDOW_MS) {
+            Log.d(
+                LOG_TAG,
+                "source=split_preserve_expired device=${previous.deviceName} ageMs=$splitAgeMs " +
+                    "prevLeft=${previous.leftLevel} prevRight=${previous.rightLevel} prevCase=${previous.caseLevel}",
+            )
+            return current
+        }
         return SplitLevels(
             left = previous?.leftLevel,
             right = previous?.rightLevel,
             caseLevel = previous?.caseLevel,
+            fromPrevious = true,
         )
     }
 
@@ -876,6 +895,7 @@ class BluetoothBatteryRepositoryImpl(
         private const val LOG_TAG = "BtBatteryRepo"
         private const val BLE_READ_THROTTLE_MS = 30_000L
         private const val BLE_READ_TIMEOUT_MS = 8_000L
+        private const val SPLIT_PRESERVE_WINDOW_MS = 20_000L
         private val BATTERY_SERVICE_UUID: UUID = UUID.fromString("0000180f-0000-1000-8000-00805f9b34fb")
         private val BATTERY_LEVEL_UUID: UUID = UUID.fromString("00002a19-0000-1000-8000-00805f9b34fb")
         private val BLE_SCAN_FILTERS = listOf(

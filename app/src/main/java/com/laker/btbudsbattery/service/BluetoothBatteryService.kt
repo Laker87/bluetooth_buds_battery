@@ -17,6 +17,7 @@ import android.os.Build
 import android.os.IBinder
 import android.view.View
 import android.widget.RemoteViews
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.laker.btbudsbattery.MainActivity
@@ -61,16 +62,18 @@ class BluetoothBatteryService : Service() {
             observeBatteryEventsUseCase()
                 .catch { /* keep service alive on stream errors */ }
                 .collect { snapshot ->
-                    val previous = lastDelivered[snapshot.deviceAddress]
-                    FastPairEventBus.emit(snapshot)
-                    persistLastKnownBattery(previous, snapshot)
+                    val previousByAddress = lastDelivered[snapshot.deviceAddress]
+                    val previousVisible = findPreviousVisibleSnapshot(snapshot)
+                    val merged = mergeForReconnect(previousVisible, snapshot)
+                    FastPairEventBus.emit(merged)
+                    persistLastKnownBattery(previousByAddress, merged)
 
-                    if (snapshot.isConnected) {
-                        if (shouldShowNotification(previous, snapshot)) {
-                            showFastPairNotification(snapshot)
+                    if (merged.isConnected) {
+                        if (shouldShowNotification(previousByAddress, merged)) {
+                            showFastPairNotification(merged)
                         }
                     }
-                    lastDelivered[snapshot.deviceAddress] = snapshot
+                    lastDelivered[snapshot.deviceAddress] = merged
 
                     if (!hasAnyConnectedDevices()) {
                         hideForegroundNotificationCompletely()
@@ -471,11 +474,57 @@ class BluetoothBatteryService : Service() {
         return lowercase().filter { it.isLetterOrDigit() }
     }
 
+    private fun findPreviousVisibleSnapshot(current: BluetoothBatterySnapshot): BluetoothBatterySnapshot? {
+        return lastDelivered.values.lastOrNull { snapshot ->
+            snapshot.deviceAddress == current.deviceAddress ||
+                snapshot.deviceName.normalizedDeviceName() == current.deviceName.normalizedDeviceName()
+        }
+    }
+
+    private fun mergeForReconnect(
+        previous: BluetoothBatterySnapshot?,
+        current: BluetoothBatterySnapshot,
+    ): BluetoothBatterySnapshot {
+        if (previous == null) return current
+        val sameDevice = previous.deviceAddress == current.deviceAddress ||
+            previous.deviceName.normalizedDeviceName() == current.deviceName.normalizedDeviceName()
+        if (!sameDevice) return current
+        val isReconnect = current.isConnected && !previous.isConnected
+        val keepSplitForFlicker = shouldKeepPreviousSplitForFlicker(previous, current)
+        if (keepSplitForFlicker) {
+            Log.d(
+                LOG_TAG,
+                "source=merge_keep_split device=${current.deviceName} prevTs=${previous.timestamp} " +
+                    "currTs=${current.timestamp} prevL=${previous.leftLevel} prevR=${previous.rightLevel} " +
+                    "prevC=${previous.caseLevel}",
+            )
+        }
+        return current.copy(
+            batteryLevel = current.batteryLevel ?: previous.batteryLevel,
+            leftLevel = current.leftLevel ?: previous.leftLevel.takeIf { isReconnect || keepSplitForFlicker },
+            rightLevel = current.rightLevel ?: previous.rightLevel.takeIf { isReconnect || keepSplitForFlicker },
+            caseLevel = current.caseLevel ?: previous.caseLevel.takeIf { isReconnect || keepSplitForFlicker },
+        )
+    }
+
+    private fun shouldKeepPreviousSplitForFlicker(
+        previous: BluetoothBatterySnapshot,
+        current: BluetoothBatterySnapshot,
+    ): Boolean {
+        if (!current.isConnected || !previous.isConnected) return false
+        if (current.hasSplitLevels) return false
+        if (!previous.hasSplitLevels) return false
+        val ageMs = (current.timestamp - previous.timestamp).coerceAtLeast(0L)
+        return ageMs <= SPLIT_FLICKER_WINDOW_MS
+    }
+
     companion object {
+        private const val LOG_TAG = "BtBatteryService"
         private const val CHANNEL_SERVICE = "bt_battery_service"
         private const val CHANNEL_FAST_PAIR = "bt_fast_pair"
         private const val SERVICE_NOTIFICATION_ID = 1001
         private const val FAST_PAIR_NOTIFICATION_ID = SERVICE_NOTIFICATION_ID
+        private const val SPLIT_FLICKER_WINDOW_MS = 20_000L
 
         const val ACTION_START_MONITORING = "com.laker.btbudsbattery.action.START_MONITORING"
         const val ACTION_STOP_MONITORING = "com.laker.btbudsbattery.action.STOP_MONITORING"

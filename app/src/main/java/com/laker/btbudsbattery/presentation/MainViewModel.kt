@@ -127,11 +127,27 @@ class MainViewModel(
         current: BluetoothBatterySnapshot,
     ): BluetoothBatterySnapshot {
         if (previous == null || !previous.isSameUserVisibleDevice(current)) return current
+        val isReconnect = current.isConnected && !previous.isConnected
+        val keepSplitForFlicker = shouldKeepPreviousSplitForFlicker(previous, current)
         return current.copy(
-            // Keep only main battery fallback. Split levels are volatile and can become
-            // unavailable when case/bud disconnects; restoring previous values makes UI stale.
             batteryLevel = current.batteryLevel ?: previous.batteryLevel,
+            // During reconnect or source race after wake-up some updates briefly report only
+            // main battery. Keep split values for a short connected window to avoid UI flicker.
+            leftLevel = current.leftLevel ?: previous.leftLevel.takeIf { isReconnect || keepSplitForFlicker },
+            rightLevel = current.rightLevel ?: previous.rightLevel.takeIf { isReconnect || keepSplitForFlicker },
+            caseLevel = current.caseLevel ?: previous.caseLevel.takeIf { isReconnect || keepSplitForFlicker },
         )
+    }
+
+    private fun shouldKeepPreviousSplitForFlicker(
+        previous: BluetoothBatterySnapshot,
+        current: BluetoothBatterySnapshot,
+    ): Boolean {
+        if (!current.isConnected || !previous.isConnected) return false
+        if (current.hasSplitLevels) return false
+        if (!previous.hasSplitLevels) return false
+        val ageMs = (current.timestamp - previous.timestamp).coerceAtLeast(0L)
+        return ageMs <= SPLIT_FLICKER_WINDOW_MS
     }
 
     private fun BluetoothBatterySnapshot.isSameUserVisibleDevice(
@@ -143,6 +159,10 @@ class MainViewModel(
 
     private fun String.normalizedDeviceName(): String {
         return lowercase().filter { it.isLetterOrDigit() }
+    }
+
+    companion object {
+        private const val SPLIT_FLICKER_WINDOW_MS = 20_000L
     }
 }
 
