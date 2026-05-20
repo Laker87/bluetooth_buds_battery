@@ -40,6 +40,7 @@
     <string name="permission_system_blocked_hint">Android blocked repeated permission prompts for this permission.</string>
     <string name="open_app_settings">Open app settings</string>
     <string name="monitoring_enabled">Monitoring enabled</string>
+    <string name="monitoring_disabled_status">Monitoring is disabled. Enable it in settings.</string>
     <string name="settings_appearance">Appearance</string>
     <string name="settings_theme">Theme</string>
     <string name="settings_accent_color">Accent color</string>

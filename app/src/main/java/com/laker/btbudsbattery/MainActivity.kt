@@ -438,6 +438,7 @@ private fun BluetoothBatteryApp(
             } else {
                 StatusCard(
                     snapshot = uiState.lastSnapshot,
+                    monitoringEnabled = uiState.monitoringEnabled,
                 )
                 HeadphoneHistoryCard(
                     history = uiState.headphoneHistory,
@@ -923,7 +924,27 @@ private fun SettingSwitchCard(
 @Composable
 private fun StatusCard(
     snapshot: BluetoothBatterySnapshot?,
+    monitoringEnabled: Boolean,
 ) {
+    if (!monitoringEnabled) {
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.current_status),
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                    ),
+                )
+                Text(text = stringResource(R.string.monitoring_disabled_status))
+            }
+        }
+        return
+    }
+
     val isConnected = snapshot?.isConnected == true
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(

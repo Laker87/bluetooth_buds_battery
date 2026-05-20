@@ -40,6 +40,7 @@
     <string name="permission_system_blocked_hint">Android заблокировал повторные запросы этого разрешения.</string>
     <string name="open_app_settings">Открыть настройки приложения</string>
     <string name="monitoring_enabled">Мониторинг включен</string>
+    <string name="monitoring_disabled_status">Мониторинг выключен. Включите его в настройках.</string>
     <string name="settings_appearance">Внешний вид</string>
     <string name="settings_theme">Тема</string>
     <string name="settings_accent_color">Акцентный цвет</string>
