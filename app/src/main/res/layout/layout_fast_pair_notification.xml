@@ -68,6 +68,7 @@
             </FrameLayout>
 
             <TextView
+                android:id="@+id/leftBatteryLabel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="3dp"
@@ -148,6 +149,7 @@
             </FrameLayout>
 
             <TextView
+                android:id="@+id/rightBatteryLabel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="3dp"
