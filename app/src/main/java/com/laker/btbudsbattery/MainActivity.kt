@@ -1120,7 +1120,7 @@ private fun batteryProgressColor(level: Int?): Color {
     val safeLevel = level ?: return Color(0xFF4D83F6)
     return when {
         safeLevel <= 10 -> Color(0xFFEF4444)
-        safeLevel < 30 -> Color(0xFFF59E0B)
+        safeLevel <= 30 -> Color(0xFFF59E0B)
         else -> Color(0xFF4D83F6)
     }
 }

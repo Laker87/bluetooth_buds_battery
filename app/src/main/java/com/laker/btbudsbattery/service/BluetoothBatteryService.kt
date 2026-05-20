@@ -346,7 +346,7 @@ class BluetoothBatteryService : Service() {
         return when {
             level == null -> ContextCompat.getColor(this, R.color.fast_pair_ring_case)
             level <= 10 -> ContextCompat.getColor(this, R.color.fast_pair_ring_critical)
-            level < 30 -> ContextCompat.getColor(this, R.color.fast_pair_ring_warning)
+            level <= 30 -> ContextCompat.getColor(this, R.color.fast_pair_ring_warning)
             else -> ContextCompat.getColor(this, R.color.fast_pair_ring_case)
         }
     }
