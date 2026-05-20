@@ -2,11 +2,13 @@
 
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
+import com.laker.btbudsbattery.data.parser.tws.fastpair.FastPairBatteryParser
 import com.laker.btbudsbattery.data.parser.tws.realme.RealmeT310FastPairParser
 
 object TwsBatteryParserRegistry {
     private val parsers: List<TwsBatteryAdvertisementParser> = listOf(
         RealmeT310FastPairParser,
+        FastPairBatteryParser,
     )
 
     val scanFilters: List<ScanFilter> by lazy {
