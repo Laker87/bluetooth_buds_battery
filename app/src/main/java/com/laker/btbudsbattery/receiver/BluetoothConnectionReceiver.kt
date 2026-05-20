@@ -10,12 +10,14 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.content.ContextCompat
 import com.laker.btbudsbattery.core.AppPreferences
+import com.laker.btbudsbattery.core.RuntimePermissionGate
 import com.laker.btbudsbattery.service.BluetoothBatteryService
 
 class BluetoothConnectionReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (!AppPreferences(context).monitoringEnabled) return
+        if (!RuntimePermissionGate.hasAllRequiredPermissions(context)) return
         val actionName = intent.action ?: return
         if (actionName !in SUPPORTED_ACTIONS) return
 

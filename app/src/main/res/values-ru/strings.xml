@@ -27,6 +27,17 @@
     <string name="initial_setup_message">Выдайте разрешения Bluetooth, геолокации и уведомлений для запуска мониторинга заряда наушников. Мониторинг включен по умолчанию.</string>
     <string name="initial_setup_grant">Выдать разрешения</string>
     <string name="initial_setup_continue">Продолжить</string>
+    <string name="initial_setup_step_counter">Шаг %1$d из %2$d</string>
+    <string name="initial_setup_step_message">Выдайте это разрешение, чтобы продолжить настройку. После одобрения откроется следующий шаг.</string>
+    <string name="initial_setup_denied_message">Разрешение пока не выдано. Нажмите кнопку ниже, чтобы запросить его повторно.</string>
+    <string name="initial_setup_all_permissions_granted">Все необходимые разрешения выданы.</string>
+    <string name="initial_setup_status_granted">выдано</string>
+    <string name="initial_setup_status_pending">ожидание</string>
+    <string name="initial_setup_grant_current_permission">Выдать это разрешение</string>
+    <string name="initial_setup_retry_permission">Запросить снова</string>
+    <string name="permission_system_blocked_message">Android блокирует повторный показ системного окна разрешения после нескольких отказов. Вы можете нажать «Запросить снова», но если окно не появляется, выдайте разрешение в настройках приложения.</string>
+    <string name="permission_system_blocked_hint">Android заблокировал повторные запросы этого разрешения.</string>
+    <string name="open_app_settings">Открыть настройки приложения</string>
     <string name="monitoring_enabled">Мониторинг включен</string>
     <string name="settings_appearance">Внешний вид</string>
     <string name="settings_theme">Тема</string>

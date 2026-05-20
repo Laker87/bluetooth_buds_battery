@@ -3,9 +3,11 @@
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.widget.Toast
 import androidx.compose.animation.animateContentSize
 import androidx.activity.compose.setContent
 import androidx.activity.compose.BackHandler
@@ -109,7 +111,8 @@ class MainActivity : AppCompatActivity() {
 
     private var hasAllPermissions by mutableStateOf(false)
     private var showPermissionsRationale by mutableStateOf(false)
-    private var permissionGrantState by mutableStateOf<Map<String, Boolean>>(emptyMap())
+    private var permissionUiItems by mutableStateOf<List<PermissionUiItem>>(emptyList())
+    private var permissionRequestAttempts by mutableStateOf<Map<String, Int>>(emptyMap())
     private var pendingEnableMonitoringAfterPermission = false
     private var initialSetupCompleted by mutableStateOf(false)
 
@@ -140,25 +143,20 @@ class MainActivity : AppCompatActivity() {
                 initialSetupCompleted = initialSetupCompleted,
                 hasAllPermissions = hasAllPermissions,
                 showPermissionsRationale = showPermissionsRationale,
-                permissionItems = requiredPermissionSpecs().map { spec ->
-                    PermissionUiItem(
-                        permission = spec.permission,
-                        labelRes = spec.labelRes,
-                        granted = permissionGrantState[spec.permission] == true,
-                    )
-                },
-                onRequestPermissions = { permissionLauncher.launch(requiredPermissions()) },
-                onRequestSinglePermission = { permission ->
-                    permissionLauncher.launch(arrayOf(permission))
-                },
-                onCompleteInitialSetup = { completeInitialSetup() },
-                onOpenBluetoothSettings = {
-                    startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
+                permissionItems = permissionUiItems,
+            onRequestPermissions = { launchPermissionRequest(requiredPermissions()) },
+            onRequestSinglePermission = { permission ->
+                launchPermissionRequest(permissionStepRequest(permission))
+            },
+            onOpenAppSettings = { openAppSettingsWithHint() },
+            onCompleteInitialSetup = { completeInitialSetup() },
+            onOpenBluetoothSettings = {
+                startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
                 },
                 onMonitoringChanged = { enabled ->
                     if (enabled && !hasAllPermissions) {
                         pendingEnableMonitoringAfterPermission = true
-                        permissionLauncher.launch(requiredPermissions())
+                        launchPermissionRequest(requiredPermissions())
                     } else {
                         pendingEnableMonitoringAfterPermission = false
                         viewModel.onMonitoringChanged(this@MainActivity, enabled)
@@ -183,15 +181,23 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updatePermissionState() {
-        val grantState = requiredPermissionSpecs().associate { spec ->
+        val denied = mutableListOf<String>()
+        permissionUiItems = requiredPermissionSpecs().map { spec ->
             val granted = ContextCompat.checkSelfPermission(this, spec.permission) ==
                 PackageManager.PERMISSION_GRANTED
-            spec.permission to granted
+            if (!granted) {
+                denied += spec.permission
+            }
+            PermissionUiItem(
+                permission = spec.permission,
+                labelRes = spec.labelRes,
+                granted = granted,
+                showRationale = !granted && shouldShowRequestPermissionRationale(spec.permission),
+                requestedCount = permissionRequestAttempts[spec.permission] ?: 0,
+            )
         }
-        permissionGrantState = grantState
-        val denied = grantState.filterValues { granted -> !granted }.keys
         hasAllPermissions = denied.isEmpty()
-        showPermissionsRationale = denied.any { shouldShowRequestPermissionRationale(it) }
+        showPermissionsRationale = permissionUiItems.any { it.showRationale }
     }
 
     private fun requiredPermissionSpecs(): List<RequiredPermissionSpec> {
@@ -228,6 +234,41 @@ class MainActivity : AppCompatActivity() {
             .toTypedArray()
     }
 
+    private fun permissionStepRequest(permission: String): Array<String> {
+        return if (permission == Manifest.permission.ACCESS_COARSE_LOCATION ||
+            permission == Manifest.permission.ACCESS_FINE_LOCATION
+        ) {
+            arrayOf(
+                Manifest.permission.ACCESS_COARSE_LOCATION,
+                Manifest.permission.ACCESS_FINE_LOCATION,
+            )
+        } else {
+            arrayOf(permission)
+        }
+    }
+
+    private fun launchPermissionRequest(permissions: Array<String>) {
+        val nextAttempts = permissionRequestAttempts.toMutableMap()
+        permissions.forEach { permission ->
+            nextAttempts[permission] = (nextAttempts[permission] ?: 0) + 1
+        }
+        permissionRequestAttempts = nextAttempts
+        permissionLauncher.launch(permissions)
+    }
+
+    private fun openAppSettingsWithHint() {
+        Toast.makeText(
+            this,
+            getString(R.string.permission_system_blocked_hint),
+            Toast.LENGTH_LONG,
+        ).show()
+        val intent = Intent(
+            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            Uri.fromParts("package", packageName, null),
+        )
+        startActivity(intent)
+    }
+
     private fun applyAppLanguage(language: AppLanguage) {
         val tag = when (language) {
             AppLanguage.ENGLISH -> "en"
@@ -246,6 +287,8 @@ private data class PermissionUiItem(
     val permission: String,
     val labelRes: Int,
     val granted: Boolean,
+    val showRationale: Boolean,
+    val requestedCount: Int,
 )
 
 @Composable
@@ -258,6 +301,7 @@ private fun BluetoothBatteryApp(
     permissionItems: List<PermissionUiItem>,
     onRequestPermissions: () -> Unit,
     onRequestSinglePermission: (String) -> Unit,
+    onOpenAppSettings: () -> Unit,
     onCompleteInitialSetup: () -> Unit,
     onOpenBluetoothSettings: () -> Unit,
     onMonitoringChanged: (Boolean) -> Unit,
@@ -272,8 +316,10 @@ private fun BluetoothBatteryApp(
     if (!initialSetupCompleted) {
         InitialSetupScreen(
             hasAllPermissions = hasAllPermissions,
-            showRationale = showPermissionsRationale,
+            permissionItems = permissionItems,
             onRequestPermissions = onRequestPermissions,
+            onRequestSinglePermission = onRequestSinglePermission,
+            onOpenAppSettings = onOpenAppSettings,
             onContinue = onCompleteInitialSetup,
         )
         return@BTBatteryTheme
@@ -378,10 +424,20 @@ private fun BluetoothBatteryApp(
 @Composable
 private fun InitialSetupScreen(
     hasAllPermissions: Boolean,
-    showRationale: Boolean,
+    permissionItems: List<PermissionUiItem>,
     onRequestPermissions: () -> Unit,
+    onRequestSinglePermission: (String) -> Unit,
+    onOpenAppSettings: () -> Unit,
     onContinue: () -> Unit,
 ) {
+    val totalPermissions = permissionItems.size
+    val grantedCount = permissionItems.count { it.granted }
+    val currentItem = permissionItems.firstOrNull { !it.granted }
+    val currentStep = (grantedCount + 1).coerceAtMost(totalPermissions)
+    val isSystemBlocked = currentItem != null &&
+        currentItem.requestedCount >= 2 &&
+        !currentItem.showRationale
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -398,18 +454,65 @@ private fun InitialSetupScreen(
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                 )
-                Text(
-                    text = if (showRationale) {
-                        stringResource(R.string.permissions_needed_rationale)
-                    } else {
-                        stringResource(R.string.initial_setup_message)
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+                if (currentItem != null) {
+                    Text(
+                        text = stringResource(
+                            R.string.initial_setup_step_counter,
+                            currentStep,
+                            totalPermissions,
+                        ),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        text = stringResource(currentItem.labelRes),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = if (isSystemBlocked) {
+                            stringResource(R.string.permission_system_blocked_message)
+                        } else if (currentItem.requestedCount > 0) {
+                            stringResource(R.string.initial_setup_denied_message)
+                        } else {
+                            stringResource(R.string.initial_setup_step_message)
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                } else {
+                    Text(
+                        text = stringResource(R.string.initial_setup_all_permissions_granted),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    permissionItems.forEach { item ->
+                        val statusText = if (item.granted) {
+                            stringResource(R.string.initial_setup_status_granted)
+                        } else {
+                            stringResource(R.string.initial_setup_status_pending)
+                        }
+                        Text(
+                            text = "${stringResource(item.labelRes)}: $statusText",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (item.granted) {
+                                Color(0xFF22C55E)
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        )
+                    }
+                }
+
                 Button(
                     onClick = {
                         if (hasAllPermissions) {
                             onContinue()
+                        } else if (currentItem != null) {
+                            onRequestSinglePermission(currentItem.permission)
                         } else {
                             onRequestPermissions()
                         }
@@ -418,10 +521,21 @@ private fun InitialSetupScreen(
                     Text(
                         text = if (hasAllPermissions) {
                             stringResource(R.string.initial_setup_continue)
+                        } else if (isSystemBlocked) {
+                            stringResource(R.string.initial_setup_retry_permission)
+                        } else if ((currentItem?.requestedCount ?: 0) > 0) {
+                            stringResource(R.string.initial_setup_retry_permission)
                         } else {
-                            stringResource(R.string.initial_setup_grant)
+                            stringResource(R.string.initial_setup_grant_current_permission)
                         },
                     )
+                }
+                if (isSystemBlocked) {
+                    Button(
+                        onClick = onOpenAppSettings,
+                    ) {
+                        Text(text = stringResource(R.string.open_app_settings))
+                    }
                 }
             }
         }

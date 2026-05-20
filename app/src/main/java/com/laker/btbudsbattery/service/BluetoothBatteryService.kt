@@ -24,6 +24,7 @@ import com.laker.btbudsbattery.MainActivity
 import com.laker.btbudsbattery.R
 import com.laker.btbudsbattery.core.AppPreferences
 import com.laker.btbudsbattery.core.FastPairEventBus
+import com.laker.btbudsbattery.core.RuntimePermissionGate
 import com.laker.btbudsbattery.data.BluetoothBatteryRepositoryImpl
 import com.laker.btbudsbattery.domain.model.BluetoothBatterySnapshot
 import com.laker.btbudsbattery.domain.usecase.ObserveBatteryEventsUseCase
@@ -51,6 +52,11 @@ class BluetoothBatteryService : Service() {
         notificationManager = getSystemService(NotificationManager::class.java)
         appPreferences = AppPreferences(applicationContext)
         createChannels()
+        if (!RuntimePermissionGate.hasAllRequiredPermissions(this)) {
+            hideForegroundNotificationCompletely()
+            stopSelf()
+            return
+        }
 
         val repository = BluetoothBatteryRepositoryImpl(
             context = applicationContext,
@@ -83,6 +89,11 @@ class BluetoothBatteryService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (!RuntimePermissionGate.hasAllRequiredPermissions(this)) {
+            hideForegroundNotificationCompletely()
+            stopSelf()
+            return START_NOT_STICKY
+        }
         when (intent?.action) {
             ACTION_STOP_MONITORING -> stopSelf()
             ACTION_START_MONITORING -> ensureForegroundModeWithCurrentNotification()

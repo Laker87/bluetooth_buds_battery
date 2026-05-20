@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.laker.btbudsbattery.core.AppPreferences
+import com.laker.btbudsbattery.core.RuntimePermissionGate
 import com.laker.btbudsbattery.service.BluetoothBatteryService
 
 class BootCompletedReceiver : BroadcastReceiver() {
@@ -14,6 +15,7 @@ class BootCompletedReceiver : BroadcastReceiver() {
 
         val preferences = AppPreferences(context)
         if (!preferences.monitoringEnabled) return
+        if (!RuntimePermissionGate.hasAllRequiredPermissions(context)) return
 
         val startIntent = Intent(context, BluetoothBatteryService::class.java).apply {
             action = BluetoothBatteryService.ACTION_BOOT_RESTORE_MONITORING
