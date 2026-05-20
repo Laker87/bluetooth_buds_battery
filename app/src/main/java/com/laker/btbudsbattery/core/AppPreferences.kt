@@ -19,9 +19,9 @@ enum class AppLanguage {
 enum class AppAccentColor {
     BLUE,
     GREEN,
-    ORANGE,
     PURPLE,
-    RED,
+    LIME,
+    BROWN,
     PINK,
     TEAL,
     CYAN,
@@ -64,9 +64,16 @@ class AppPreferences(context: Context) {
         set(value) = preferences.edit().putString(KEY_APP_LANGUAGE, value.name).apply()
 
     var appAccentColor: AppAccentColor
-        get() = preferences.getString(KEY_APP_ACCENT_COLOR, AppAccentColor.BLUE.name)
-            ?.let { runCatching { AppAccentColor.valueOf(it) }.getOrNull() }
-            ?: AppAccentColor.BLUE
+        get() {
+            val stored = preferences.getString(KEY_APP_ACCENT_COLOR, AppAccentColor.BLUE.name)
+                ?: AppAccentColor.BLUE.name
+            return when (stored) {
+                // Migrate legacy accents to new palette choices.
+                "ORANGE" -> AppAccentColor.LIME
+                "RED" -> AppAccentColor.BROWN
+                else -> runCatching { AppAccentColor.valueOf(stored) }.getOrNull() ?: AppAccentColor.BLUE
+            }
+        }
         set(value) = preferences.edit().putString(KEY_APP_ACCENT_COLOR, value.name).apply()
 
     var lastKnownSnapshot: BluetoothBatterySnapshot?

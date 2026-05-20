@@ -22,6 +22,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.laker.btbudsbattery.MainActivity
 import com.laker.btbudsbattery.R
+import com.laker.btbudsbattery.core.AppAccentColor
 import com.laker.btbudsbattery.core.AppPreferences
 import com.laker.btbudsbattery.core.FastPairEventBus
 import com.laker.btbudsbattery.core.RuntimePermissionGate
@@ -97,6 +98,7 @@ class BluetoothBatteryService : Service() {
         when (intent?.action) {
             ACTION_STOP_MONITORING -> stopSelf()
             ACTION_START_MONITORING -> ensureForegroundModeWithCurrentNotification()
+            ACTION_REFRESH_NOTIFICATION -> refreshActiveNotification()
             ACTION_BOOT_RESTORE_MONITORING -> Unit
         }
         return START_NOT_STICKY
@@ -264,7 +266,8 @@ class BluetoothBatteryService : Service() {
         val clamped = (level ?: 0).coerceIn(0, 100)
         val density = resources.displayMetrics.density
         val sizePx = (sizeDp * density).toInt().coerceAtLeast(1)
-        val cacheKey = "$sizePx:${level ?: "null"}"
+        val progressColor = resolveBatteryRingProgressColor(level)
+        val cacheKey = "$sizePx:${level ?: "null"}:$progressColor"
         ringBitmapCache[cacheKey]?.let { return it }
 
         val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
@@ -288,7 +291,7 @@ class BluetoothBatteryService : Service() {
             style = Paint.Style.STROKE
             strokeCap = Paint.Cap.ROUND
             this.strokeWidth = strokeWidth
-            color = resolveBatteryRingProgressColor(level)
+            color = progressColor
         }
 
         if (clamped >= 100) {
@@ -344,10 +347,25 @@ class BluetoothBatteryService : Service() {
 
     private fun resolveBatteryRingProgressColor(level: Int?): Int {
         return when {
-            level == null -> ContextCompat.getColor(this, R.color.fast_pair_ring_case)
+            level == null -> resolveAccentColorInt()
             level <= 10 -> ContextCompat.getColor(this, R.color.fast_pair_ring_critical)
             level <= 30 -> ContextCompat.getColor(this, R.color.fast_pair_ring_warning)
-            else -> ContextCompat.getColor(this, R.color.fast_pair_ring_case)
+            else -> resolveAccentColorInt()
+        }
+    }
+
+    private fun resolveAccentColorInt(): Int {
+        return when (appPreferences.appAccentColor) {
+            AppAccentColor.BLUE -> 0xFF3B82F6.toInt()
+            AppAccentColor.GREEN -> 0xFF22C55E.toInt()
+            AppAccentColor.PURPLE -> 0xFF8B5CF6.toInt()
+            AppAccentColor.LIME -> 0xFF84CC16.toInt()
+            AppAccentColor.BROWN -> 0xFF8B5E34.toInt()
+            AppAccentColor.PINK -> 0xFFEC4899.toInt()
+            AppAccentColor.TEAL -> 0xFF14B8A6.toInt()
+            AppAccentColor.CYAN -> 0xFF06B6D4.toInt()
+            AppAccentColor.INDIGO -> 0xFF6366F1.toInt()
+            AppAccentColor.AMBER -> 0xFFF59E0B.toInt()
         }
     }
 
@@ -411,6 +429,13 @@ class BluetoothBatteryService : Service() {
             return
         }
         tryStartForeground(SERVICE_NOTIFICATION_ID, buildServiceNotification())
+    }
+
+    private fun refreshActiveNotification() {
+        ringBitmapCache.clear()
+        latestConnectedSnapshot()?.let { snapshot ->
+            showFastPairNotification(snapshot)
+        }
     }
 
     private fun tryStartForeground(notificationId: Int, notification: Notification): Boolean {
@@ -541,6 +566,7 @@ class BluetoothBatteryService : Service() {
 
         const val ACTION_START_MONITORING = "com.laker.btbudsbattery.action.START_MONITORING"
         const val ACTION_STOP_MONITORING = "com.laker.btbudsbattery.action.STOP_MONITORING"
+        const val ACTION_REFRESH_NOTIFICATION = "com.laker.btbudsbattery.action.REFRESH_NOTIFICATION"
         const val ACTION_BOOT_RESTORE_MONITORING = "com.laker.btbudsbattery.action.BOOT_RESTORE_MONITORING"
     }
 }

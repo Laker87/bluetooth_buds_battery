@@ -78,6 +78,7 @@ import com.laker.btbudsbattery.core.HeadphoneHistoryEntry
 import com.laker.btbudsbattery.domain.model.BluetoothBatterySnapshot
 import com.laker.btbudsbattery.presentation.MainViewModel
 import com.laker.btbudsbattery.presentation.MainUiState
+import com.laker.btbudsbattery.service.BluetoothBatteryService
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bluetooth
@@ -170,7 +171,10 @@ class MainActivity : AppCompatActivity() {
                     viewModel.onLanguageChanged(language)
                     applyAppLanguage(language)
                 },
-                onAccentColorChanged = viewModel::onAccentColorChanged,
+                onAccentColorChanged = { accentColor ->
+                    viewModel.onAccentColorChanged(accentColor)
+                    refreshNotificationAppearance()
+                },
             )
         }
     }
@@ -278,6 +282,14 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.RUSSIAN -> "ru"
         }
         AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(tag))
+    }
+
+    private fun refreshNotificationAppearance() {
+        if (!appPreferences.monitoringEnabled || !hasAllPermissions) return
+        val intent = Intent(this, BluetoothBatteryService::class.java).apply {
+            action = BluetoothBatteryService.ACTION_REFRESH_NOTIFICATION
+        }
+        startService(intent)
     }
 }
 
@@ -691,9 +703,9 @@ private fun AppearanceAndLanguageCard(
                 value = when (selectedAccentColor) {
                     AppAccentColor.BLUE -> stringResource(R.string.accent_blue)
                     AppAccentColor.GREEN -> stringResource(R.string.accent_green)
-                    AppAccentColor.ORANGE -> stringResource(R.string.accent_orange)
                     AppAccentColor.PURPLE -> stringResource(R.string.accent_purple)
-                    AppAccentColor.RED -> stringResource(R.string.accent_red)
+                    AppAccentColor.LIME -> stringResource(R.string.accent_lime)
+                    AppAccentColor.BROWN -> stringResource(R.string.accent_brown)
                     AppAccentColor.PINK -> stringResource(R.string.accent_pink)
                     AppAccentColor.TEAL -> stringResource(R.string.accent_teal)
                     AppAccentColor.CYAN -> stringResource(R.string.accent_cyan)
@@ -712,9 +724,9 @@ private fun AppearanceAndLanguageCard(
                         onClick = { onAccentColorChanged(AppAccentColor.GREEN) },
                     ),
                     DropdownOption(
-                        label = stringResource(R.string.accent_orange),
+                        label = stringResource(R.string.accent_lime),
                         enabled = true,
-                        onClick = { onAccentColorChanged(AppAccentColor.ORANGE) },
+                        onClick = { onAccentColorChanged(AppAccentColor.LIME) },
                     ),
                     DropdownOption(
                         label = stringResource(R.string.accent_purple),
@@ -722,9 +734,9 @@ private fun AppearanceAndLanguageCard(
                         onClick = { onAccentColorChanged(AppAccentColor.PURPLE) },
                     ),
                     DropdownOption(
-                        label = stringResource(R.string.accent_red),
+                        label = stringResource(R.string.accent_brown),
                         enabled = true,
-                        onClick = { onAccentColorChanged(AppAccentColor.RED) },
+                        onClick = { onAccentColorChanged(AppAccentColor.BROWN) },
                     ),
                     DropdownOption(
                         label = stringResource(R.string.accent_pink),
@@ -794,9 +806,9 @@ private fun BTBatteryTheme(
     val accent = when (appAccentColor) {
         AppAccentColor.BLUE -> Color(0xFF3B82F6)
         AppAccentColor.GREEN -> Color(0xFF22C55E)
-        AppAccentColor.ORANGE -> Color(0xFFF59E0B)
         AppAccentColor.PURPLE -> Color(0xFF8B5CF6)
-        AppAccentColor.RED -> Color(0xFFEF4444)
+        AppAccentColor.LIME -> Color(0xFF84CC16)
+        AppAccentColor.BROWN -> Color(0xFF8B5E34)
         AppAccentColor.PINK -> Color(0xFFEC4899)
         AppAccentColor.TEAL -> Color(0xFF14B8A6)
         AppAccentColor.CYAN -> Color(0xFF06B6D4)
@@ -1116,12 +1128,13 @@ private fun BatteryCircleItem(
     }
 }
 
+@Composable
 private fun batteryProgressColor(level: Int?): Color {
-    val safeLevel = level ?: return Color(0xFF4D83F6)
+    val safeLevel = level ?: return MaterialTheme.colorScheme.primary
     return when {
         safeLevel <= 10 -> Color(0xFFEF4444)
         safeLevel <= 30 -> Color(0xFFF59E0B)
-        else -> Color(0xFF4D83F6)
+        else -> MaterialTheme.colorScheme.primary
     }
 }
 
