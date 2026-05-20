@@ -24,7 +24,7 @@
             android:ellipsize="end"
             android:maxLines="1"
             android:textColor="@color/fast_pair_text_primary"
-            android:textSize="14sp"
+            android:textSize="12sp"
             android:textStyle="bold" />
     </LinearLayout>
 
