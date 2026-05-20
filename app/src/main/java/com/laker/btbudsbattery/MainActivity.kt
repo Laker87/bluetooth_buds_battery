@@ -96,10 +96,8 @@ class MainActivity : AppCompatActivity() {
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
-    ) { grantMap ->
-        val denied = grantMap.filterValues { granted -> !granted }.keys
-        hasAllPermissions = denied.isEmpty()
-        showPermissionsRationale = denied.any { shouldShowRequestPermissionRationale(it) }
+    ) {
+        updatePermissionState()
         if (hasAllPermissions && !initialSetupCompleted) {
             completeInitialSetup()
         }
@@ -111,6 +109,7 @@ class MainActivity : AppCompatActivity() {
 
     private var hasAllPermissions by mutableStateOf(false)
     private var showPermissionsRationale by mutableStateOf(false)
+    private var permissionGrantState by mutableStateOf<Map<String, Boolean>>(emptyMap())
     private var pendingEnableMonitoringAfterPermission = false
     private var initialSetupCompleted by mutableStateOf(false)
 
@@ -141,7 +140,17 @@ class MainActivity : AppCompatActivity() {
                 initialSetupCompleted = initialSetupCompleted,
                 hasAllPermissions = hasAllPermissions,
                 showPermissionsRationale = showPermissionsRationale,
+                permissionItems = requiredPermissionSpecs().map { spec ->
+                    PermissionUiItem(
+                        permission = spec.permission,
+                        labelRes = spec.labelRes,
+                        granted = permissionGrantState[spec.permission] == true,
+                    )
+                },
                 onRequestPermissions = { permissionLauncher.launch(requiredPermissions()) },
+                onRequestSinglePermission = { permission ->
+                    permissionLauncher.launch(arrayOf(permission))
+                },
                 onCompleteInitialSetup = { completeInitialSetup() },
                 onOpenBluetoothSettings = {
                     startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
@@ -174,25 +183,49 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updatePermissionState() {
-        val permissions = requiredPermissions()
-        val denied = permissions.filter { permission ->
-            ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED
+        val grantState = requiredPermissionSpecs().associate { spec ->
+            val granted = ContextCompat.checkSelfPermission(this, spec.permission) ==
+                PackageManager.PERMISSION_GRANTED
+            spec.permission to granted
         }
+        permissionGrantState = grantState
+        val denied = grantState.filterValues { granted -> !granted }.keys
         hasAllPermissions = denied.isEmpty()
         showPermissionsRationale = denied.any { shouldShowRequestPermissionRationale(it) }
     }
 
-    private fun requiredPermissions(): Array<String> {
-        val permissions = mutableListOf(
-            Manifest.permission.BLUETOOTH_CONNECT,
-            Manifest.permission.BLUETOOTH_SCAN,
-            Manifest.permission.ACCESS_COARSE_LOCATION,
-            Manifest.permission.ACCESS_FINE_LOCATION,
+    private fun requiredPermissionSpecs(): List<RequiredPermissionSpec> {
+        val specs = mutableListOf(
+            RequiredPermissionSpec(
+                permission = Manifest.permission.BLUETOOTH_CONNECT,
+                labelRes = R.string.permission_bluetooth_connect,
+            ),
+            RequiredPermissionSpec(
+                permission = Manifest.permission.BLUETOOTH_SCAN,
+                labelRes = R.string.permission_bluetooth_scan,
+            ),
+            RequiredPermissionSpec(
+                permission = Manifest.permission.ACCESS_COARSE_LOCATION,
+                labelRes = R.string.permission_location_coarse,
+            ),
+            RequiredPermissionSpec(
+                permission = Manifest.permission.ACCESS_FINE_LOCATION,
+                labelRes = R.string.permission_location_fine,
+            ),
         )
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            permissions += Manifest.permission.POST_NOTIFICATIONS
+            specs += RequiredPermissionSpec(
+                permission = Manifest.permission.POST_NOTIFICATIONS,
+                labelRes = R.string.permission_notifications,
+            )
         }
-        return permissions.toTypedArray()
+        return specs
+    }
+
+    private fun requiredPermissions(): Array<String> {
+        return requiredPermissionSpecs()
+            .map { it.permission }
+            .toTypedArray()
     }
 
     private fun applyAppLanguage(language: AppLanguage) {
@@ -204,6 +237,17 @@ class MainActivity : AppCompatActivity() {
     }
 }
 
+private data class RequiredPermissionSpec(
+    val permission: String,
+    val labelRes: Int,
+)
+
+private data class PermissionUiItem(
+    val permission: String,
+    val labelRes: Int,
+    val granted: Boolean,
+)
+
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 private fun BluetoothBatteryApp(
@@ -211,7 +255,9 @@ private fun BluetoothBatteryApp(
     initialSetupCompleted: Boolean,
     hasAllPermissions: Boolean,
     showPermissionsRationale: Boolean,
+    permissionItems: List<PermissionUiItem>,
     onRequestPermissions: () -> Unit,
+    onRequestSinglePermission: (String) -> Unit,
     onCompleteInitialSetup: () -> Unit,
     onOpenBluetoothSettings: () -> Unit,
     onMonitoringChanged: (Boolean) -> Unit,
@@ -294,12 +340,12 @@ private fun BluetoothBatteryApp(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (isSettingsOpen) {
-                if (!hasAllPermissions) {
-                    PermissionsCard(
-                        showRationale = showPermissionsRationale,
-                        onRequestPermissions = onRequestPermissions,
-                    )
-                }
+                PermissionsCard(
+                    showRationale = showPermissionsRationale,
+                    permissionItems = permissionItems,
+                    onRequestPermissions = onRequestPermissions,
+                    onRequestSinglePermission = onRequestSinglePermission,
+                )
 
                 SettingSwitchCard(
                     title = stringResource(R.string.monitoring_enabled),
@@ -385,27 +431,72 @@ private fun InitialSetupScreen(
 @Composable
 private fun PermissionsCard(
     showRationale: Boolean,
+    permissionItems: List<PermissionUiItem>,
     onRequestPermissions: () -> Unit,
+    onRequestSinglePermission: (String) -> Unit,
 ) {
+    val hasMissingPermissions = permissionItems.any { !it.granted }
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                text = stringResource(R.string.permissions_needed_title),
+                text = stringResource(R.string.permissions_status_title),
                 style = MaterialTheme.typography.titleMedium,
             )
             Text(
-                text = if (showRationale) {
+                text = if (hasMissingPermissions && showRationale) {
                     stringResource(R.string.permissions_needed_rationale)
-                } else {
+                } else if (hasMissingPermissions) {
                     stringResource(R.string.permissions_needed_message)
+                } else {
+                    stringResource(R.string.permission_granted)
                 },
                 style = MaterialTheme.typography.bodyMedium,
             )
-            Button(onClick = onRequestPermissions) {
-                Text(text = stringResource(R.string.grant_permissions))
+
+            permissionItems.forEach { item ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        Text(
+                            text = stringResource(item.labelRes),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Text(
+                            text = if (item.granted) {
+                                stringResource(R.string.permission_granted)
+                            } else {
+                                stringResource(R.string.permission_not_granted)
+                            },
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (item.granted) {
+                                Color(0xFF22C55E)
+                            } else {
+                                MaterialTheme.colorScheme.error
+                            },
+                        )
+                    }
+                    if (!item.granted) {
+                        Button(onClick = { onRequestSinglePermission(item.permission) }) {
+                            Text(text = stringResource(R.string.grant_permission_short))
+                        }
+                    }
+                }
+            }
+
+            if (hasMissingPermissions) {
+                Button(onClick = onRequestPermissions) {
+                    Text(text = stringResource(R.string.grant_permissions))
+                }
             }
         }
     }
