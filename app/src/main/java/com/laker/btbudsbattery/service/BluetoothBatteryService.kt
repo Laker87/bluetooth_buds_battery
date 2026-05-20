@@ -493,14 +493,17 @@ class BluetoothBatteryService : Service() {
         }
 
         val disconnectedAt = if (current.isConnected) null else appPreferences.disconnectedSinceMillis
+        val historySource = merged?.takeIf { it.isSameUserVisibleDevice(current) } ?: current
+        val clearSplitLevels = historySource.primaryLevel != null && !historySource.hasSplitLevels
         appPreferences.upsertHeadphoneHistory(
             deviceAddress = current.deviceAddress,
             deviceName = current.deviceName,
-            lastBatteryLevel = merged?.primaryLevel ?: current.primaryLevel,
-            lastLeftLevel = merged?.leftLevel ?: current.leftLevel,
-            lastRightLevel = merged?.rightLevel ?: current.rightLevel,
-            lastCaseLevel = merged?.caseLevel ?: current.caseLevel,
+            lastBatteryLevel = historySource.primaryLevel,
+            lastLeftLevel = historySource.leftLevel,
+            lastRightLevel = historySource.rightLevel,
+            lastCaseLevel = historySource.caseLevel,
             lastDisconnectedAt = disconnectedAt,
+            clearSplitLevels = clearSplitLevels,
         )
     }
 
@@ -529,6 +532,11 @@ class BluetoothBatteryService : Service() {
 
     private fun String.normalizedDeviceName(): String {
         return lowercase().filter { it.isLetterOrDigit() }
+    }
+
+    private fun BluetoothBatterySnapshot.isSameUserVisibleDevice(other: BluetoothBatterySnapshot): Boolean {
+        return deviceAddress == other.deviceAddress ||
+            deviceName.normalizedDeviceName() == other.deviceName.normalizedDeviceName()
     }
 
     private fun findPreviousVisibleSnapshot(current: BluetoothBatterySnapshot): BluetoothBatterySnapshot? {

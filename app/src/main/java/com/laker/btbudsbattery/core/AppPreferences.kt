@@ -192,6 +192,7 @@ class AppPreferences(context: Context) {
         lastRightLevel: Int?,
         lastCaseLevel: Int?,
         lastDisconnectedAt: Long?,
+        clearSplitLevels: Boolean = false,
     ) {
         if (deviceAddress.isBlank() || deviceName.isBlank()) return
         val current = headphoneHistory.toMutableList()
@@ -201,9 +202,21 @@ class AppPreferences(context: Context) {
             deviceAddress = deviceAddress,
             deviceName = deviceName,
             lastBatteryLevel = lastBatteryLevel ?: existing?.lastBatteryLevel,
-            lastLeftLevel = lastLeftLevel ?: existing?.lastLeftLevel,
-            lastRightLevel = lastRightLevel ?: existing?.lastRightLevel,
-            lastCaseLevel = lastCaseLevel ?: existing?.lastCaseLevel,
+            lastLeftLevel = when {
+                clearSplitLevels -> null
+                lastLeftLevel != null -> lastLeftLevel
+                else -> existing?.lastLeftLevel
+            },
+            lastRightLevel = when {
+                clearSplitLevels -> null
+                lastRightLevel != null -> lastRightLevel
+                else -> existing?.lastRightLevel
+            },
+            lastCaseLevel = when {
+                clearSplitLevels -> null
+                lastCaseLevel != null -> lastCaseLevel
+                else -> existing?.lastCaseLevel
+            },
             lastDisconnectedAt = lastDisconnectedAt ?: existing?.lastDisconnectedAt,
         )
         if (existingIndex >= 0) current.removeAt(existingIndex)

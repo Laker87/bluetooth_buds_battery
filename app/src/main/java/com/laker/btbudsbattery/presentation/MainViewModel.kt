@@ -72,11 +72,15 @@ class MainViewModel(
                 appPreferences.upsertHeadphoneHistory(
                     deviceAddress = merged.deviceAddress,
                     deviceName = merged.deviceName,
-                    lastBatteryLevel = _uiState.value.lastKnownSnapshot?.primaryLevel ?: merged.primaryLevel,
-                    lastLeftLevel = _uiState.value.lastKnownSnapshot?.leftLevel ?: merged.leftLevel,
-                    lastRightLevel = _uiState.value.lastKnownSnapshot?.rightLevel ?: merged.rightLevel,
-                    lastCaseLevel = _uiState.value.lastKnownSnapshot?.caseLevel ?: merged.caseLevel,
+                    // Persist levels strictly from the current device snapshot.
+                    // Using a global last-known snapshot can leak split levels (L/R/Case)
+                    // from another headset model into this device's history entry.
+                    lastBatteryLevel = merged.primaryLevel,
+                    lastLeftLevel = merged.leftLevel,
+                    lastRightLevel = merged.rightLevel,
+                    lastCaseLevel = merged.caseLevel,
                     lastDisconnectedAt = disconnectedAt,
+                    clearSplitLevels = merged.primaryLevel != null && !merged.hasSplitLevels,
                 )
                 _uiState.update { state -> state.copy(headphoneHistory = appPreferences.headphoneHistory) }
             }
