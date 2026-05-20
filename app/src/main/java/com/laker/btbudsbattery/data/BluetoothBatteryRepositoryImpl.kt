@@ -319,8 +319,9 @@ class BluetoothBatteryRepositoryImpl(
         Log.d(
             LOG_TAG,
             "source=apple_continuity model=${parsed.modelName} code=0x${parsed.modelCode.toString(16)} " +
-                "rssi=${result.rssi} main=${snapshot.batteryLevel} left=${snapshot.leftLevel} " +
-                "right=${snapshot.rightLevel} case=${snapshot.caseLevel}",
+                "rssi=${result.rssi} addr=${result.device.address} bind=$address " +
+                "main=${snapshot.batteryLevel} left=${snapshot.leftLevel} right=${snapshot.rightLevel} " +
+                "case=${snapshot.caseLevel} raw=${data?.toHexString() ?: "null"}",
         )
         return snapshot
     }
@@ -660,6 +661,14 @@ class BluetoothBatteryRepositoryImpl(
 
     private fun String.normalizeDeviceName(): String {
         return lowercase().filter { it.isLetterOrDigit() }
+    }
+
+    private fun ByteArray.toHexString(): String {
+        val out = StringBuilder(size * 2)
+        for (b in this) {
+            out.append(String.format("%02X", b))
+        }
+        return out.toString()
     }
 
     private fun mergeCoarseContinuityLevel(coarseLevel: Int?, previousLevel: Int?): Int? {
