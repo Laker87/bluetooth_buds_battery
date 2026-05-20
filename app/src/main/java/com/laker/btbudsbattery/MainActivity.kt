@@ -13,6 +13,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
@@ -50,6 +52,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -378,11 +381,23 @@ private fun BluetoothBatteryApp(
             )
         },
     ) { padding ->
+        val settingsScrollState = rememberScrollState()
+        val contentModifier = remember(isSettingsOpen, settingsScrollState, padding) {
+            if (isSettingsOpen) {
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(16.dp)
+                    .verticalScroll(settingsScrollState)
+            } else {
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(16.dp)
+            }
+        }
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp),
+            modifier = contentModifier,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (isSettingsOpen) {
@@ -550,26 +565,38 @@ private fun PermissionsCard(
     onRequestSinglePermission: (String) -> Unit,
 ) {
     val hasMissingPermissions = permissionItems.any { !it.granted }
+    val grantedCount = permissionItems.count { it.granted }
+    val totalCount = permissionItems.size
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text(
                 text = stringResource(R.string.permissions_status_title),
                 style = MaterialTheme.typography.titleMedium,
             )
             Text(
-                text = if (hasMissingPermissions && showRationale) {
-                    stringResource(R.string.permissions_needed_rationale)
-                } else if (hasMissingPermissions) {
-                    stringResource(R.string.permissions_needed_message)
+                text = if (hasMissingPermissions) {
+                    stringResource(
+                        R.string.permissions_granted_count,
+                        grantedCount,
+                        totalCount,
+                    )
                 } else {
                     stringResource(R.string.permission_granted)
                 },
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (hasMissingPermissions && showRationale) {
+                Text(
+                    text = stringResource(R.string.permissions_needed_rationale),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
 
             permissionItems.forEach { item ->
                 Row(
@@ -577,39 +604,45 @@ private fun PermissionsCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Column(
+                    Text(
+                        text = stringResource(item.labelRes),
+                        style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    )
+                    Text(
+                        text = if (item.granted) {
+                            stringResource(R.string.permission_granted)
+                        } else {
+                            stringResource(R.string.permission_not_granted)
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (item.granted) {
+                            Color(0xFF22C55E)
+                        } else {
+                            MaterialTheme.colorScheme.error
+                        },
+                    )
+                }
+
+                if (!item.granted) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
                     ) {
-                        Text(
-                            text = stringResource(item.labelRes),
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                        Text(
-                            text = if (item.granted) {
-                                stringResource(R.string.permission_granted)
-                            } else {
-                                stringResource(R.string.permission_not_granted)
-                            },
-                            style = MaterialTheme.typography.labelMedium,
-                            color = if (item.granted) {
-                                Color(0xFF22C55E)
-                            } else {
-                                MaterialTheme.colorScheme.error
-                            },
-                        )
-                    }
-                    if (!item.granted) {
                         Button(onClick = { onRequestSinglePermission(item.permission) }) {
                             Text(text = stringResource(R.string.grant_permission_short))
                         }
                     }
                 }
             }
-
             if (hasMissingPermissions) {
-                Button(onClick = onRequestPermissions) {
-                    Text(text = stringResource(R.string.grant_permissions))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    Button(onClick = onRequestPermissions) {
+                        Text(text = stringResource(R.string.grant_permissions))
+                    }
                 }
             }
         }

@@ -23,6 +23,7 @@
     <string name="permission_notifications">Notifications</string>
     <string name="permission_granted">Granted</string>
     <string name="permission_not_granted">Not granted</string>
+    <string name="permissions_granted_count">Granted %1$d/%2$d permissions</string>
     <string name="initial_setup_title">Initial setup</string>
     <string name="initial_setup_message">Grant Bluetooth, location and notification permissions to start battery monitoring for your earbuds. Monitoring is enabled by default.</string>
     <string name="initial_setup_grant">Grant permissions</string>
