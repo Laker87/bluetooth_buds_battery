@@ -188,7 +188,26 @@ class BluetoothBatteryService : Service() {
         if (isCompact) {
             remoteViews.setTextViewText(R.id.fastPairTitle, snapshot.deviceName)
             remoteViews.setTextViewText(R.id.fastPairSubtitle, getString(R.string.fast_pair_connected))
-            remoteViews.setTextViewText(R.id.fastPairBatteryValue, formatBattery(snapshot.primaryLevel))
+            if (snapshot.hasSplitLevels) {
+                remoteViews.setViewVisibility(R.id.fastPairBatteryValue, View.GONE)
+                remoteViews.setViewVisibility(R.id.fastPairSplitBatteryRowCompact, View.VISIBLE)
+                remoteViews.setTextViewText(
+                    R.id.fastPairLeftBatteryValueCompact,
+                    "${getString(R.string.left_short)} ${formatBattery(snapshot.leftLevel)}",
+                )
+                remoteViews.setTextViewText(
+                    R.id.fastPairCaseBatteryValueCompact,
+                    "${getString(R.string.case_short)} ${formatBattery(snapshot.caseLevel)}",
+                )
+                remoteViews.setTextViewText(
+                    R.id.fastPairRightBatteryValueCompact,
+                    "${getString(R.string.right_short)} ${formatBattery(snapshot.rightLevel)}",
+                )
+            } else {
+                remoteViews.setViewVisibility(R.id.fastPairSplitBatteryRowCompact, View.GONE)
+                remoteViews.setViewVisibility(R.id.fastPairBatteryValue, View.VISIBLE)
+                remoteViews.setTextViewText(R.id.fastPairBatteryValue, formatBattery(snapshot.primaryLevel))
+            }
             return
         }
 

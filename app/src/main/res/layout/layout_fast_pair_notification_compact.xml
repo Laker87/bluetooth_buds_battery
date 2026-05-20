@@ -41,5 +41,38 @@
         android:gravity="end"
         android:minWidth="48dp"
         android:textAlignment="textEnd"
+        android:visibility="visible"
         style="@style/TextAppearance.Compat.Notification.Title" />
+
+    <LinearLayout
+        android:id="@+id/fastPairSplitBatteryRowCompact"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="4dp"
+        android:gravity="start"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/fastPairLeftBatteryValueCompact"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="10sp"
+            style="@style/TextAppearance.Compat.Notification.Title" />
+
+        <TextView
+            android:id="@+id/fastPairCaseBatteryValueCompact"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="10sp"
+            style="@style/TextAppearance.Compat.Notification.Title" />
+
+        <TextView
+            android:id="@+id/fastPairRightBatteryValueCompact"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="10sp"
+            style="@style/TextAppearance.Compat.Notification.Title" />
+    </LinearLayout>
 </LinearLayout>
