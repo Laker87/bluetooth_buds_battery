@@ -177,6 +177,7 @@ class MainActivity : AppCompatActivity() {
                 onAccentColorChanged = { accentColor ->
                     viewModel.onAccentColorChanged(accentColor)
                     refreshNotificationAppearance()
+                    refreshWidgetAppearance()
                 },
             )
         }

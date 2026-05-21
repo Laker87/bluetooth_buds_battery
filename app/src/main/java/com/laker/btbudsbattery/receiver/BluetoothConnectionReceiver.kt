@@ -1,7 +1,6 @@
 ﻿package com.laker.btbudsbattery.receiver
 
 import android.bluetooth.BluetoothA2dp
-import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothHeadset
 import android.bluetooth.BluetoothProfile
@@ -23,8 +22,6 @@ class BluetoothConnectionReceiver : BroadcastReceiver() {
 
         val action = when {
             isConnectEvent(intent) -> BluetoothBatteryService.ACTION_START_MONITORING
-            isUserUnlockedEvent(intent) -> BluetoothBatteryService.ACTION_BOOT_RESTORE_MONITORING
-            isBluetoothTurnedOn(intent) -> BluetoothBatteryService.ACTION_BOOT_RESTORE_MONITORING
             else -> null
         }
         if (action == null) return
@@ -32,14 +29,8 @@ class BluetoothConnectionReceiver : BroadcastReceiver() {
         val serviceIntent = Intent(context, BluetoothBatteryService::class.java).apply {
             this.action = action
         }
-        if (action == BluetoothBatteryService.ACTION_START_MONITORING) {
-            runCatching {
-                ContextCompat.startForegroundService(context, serviceIntent)
-            }
-        } else {
-            runCatching {
-                context.startService(serviceIntent)
-            }
+        runCatching {
+            ContextCompat.startForegroundService(context, serviceIntent)
         }
     }
 
@@ -55,22 +46,11 @@ class BluetoothConnectionReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun isBluetoothTurnedOn(intent: Intent): Boolean {
-        if (intent.action != BluetoothAdapter.ACTION_STATE_CHANGED) return false
-        return intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) == BluetoothAdapter.STATE_ON
-    }
-
-    private fun isUserUnlockedEvent(intent: Intent): Boolean {
-        return intent.action == Intent.ACTION_USER_UNLOCKED
-    }
-
     private companion object {
         val SUPPORTED_ACTIONS = setOf(
             BluetoothDevice.ACTION_ACL_CONNECTED,
             BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED,
             BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED,
-            BluetoothAdapter.ACTION_STATE_CHANGED,
-            Intent.ACTION_USER_UNLOCKED,
         )
     }
 }

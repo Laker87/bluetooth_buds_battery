@@ -11,8 +11,8 @@
     <string name="ok">ОК</string>
     <string name="dismiss">Закрыть</string>
     <string name="permissions_needed_title">Требуются разрешения</string>
-    <string name="permissions_needed_message">Предоставьте разрешения Bluetooth, геолокации и уведомлений для фонового мониторинга.</string>
-    <string name="permissions_needed_rationale">Без разрешений Bluetooth, геолокации и уведомлений приложение не сможет читать BLE-данные Beats и показывать уведомления Fast Pair.</string>
+    <string name="permissions_needed_message">Предоставьте необходимые разрешения Bluetooth и уведомлений для фонового мониторинга.</string>
+    <string name="permissions_needed_rationale">Без необходимых разрешений Bluetooth и уведомлений приложение не сможет читать данные заряда наушников и показывать уведомления.</string>
     <string name="grant_permissions">Выдать разрешения</string>
     <string name="grant_permission_short">Выдать</string>
     <string name="permissions_status_title">Статус разрешений</string>
@@ -25,7 +25,7 @@
     <string name="permission_not_granted">Не выдано</string>
     <string name="permissions_granted_count">Выдано разрешений: %1$d/%2$d</string>
     <string name="initial_setup_title">Первоначальная настройка</string>
-    <string name="initial_setup_message">Выдайте разрешения Bluetooth, геолокации и уведомлений для запуска мониторинга заряда наушников. Мониторинг включен по умолчанию.</string>
+    <string name="initial_setup_message">Выдайте необходимые разрешения Bluetooth и уведомлений для запуска мониторинга заряда наушников. Мониторинг включен по умолчанию.</string>
     <string name="initial_setup_grant">Выдать разрешения</string>
     <string name="initial_setup_continue">Продолжить</string>
     <string name="initial_setup_step_counter">Шаг %1$d из %2$d</string>

@@ -28,7 +28,7 @@ class BatteryWidgetProvider : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetIds: IntArray,
     ) {
-        val snapshot: BluetoothBatterySnapshot? = null
+        val snapshot = AppPreferences(context).widgetSnapshot
         appWidgetIds.forEach { widgetId ->
             updateWidget(context, appWidgetManager, widgetId, snapshot)
         }
@@ -41,11 +41,12 @@ class BatteryWidgetProvider : AppWidgetProvider() {
         newOptions: Bundle,
     ) {
         super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
-        updateWidget(context, appWidgetManager, appWidgetId, null)
+        updateWidget(context, appWidgetManager, appWidgetId, AppPreferences(context).widgetSnapshot)
     }
 
     companion object {
         fun updateAll(context: Context, snapshot: BluetoothBatterySnapshot?) {
+            AppPreferences(context).widgetSnapshot = snapshot
             val appWidgetManager = AppWidgetManager.getInstance(context)
             val componentName = ComponentName(context, BatteryWidgetProvider::class.java)
             val ids = appWidgetManager.getAppWidgetIds(componentName)

@@ -120,6 +120,46 @@ class AppPreferences(context: Context) {
                 .apply()
         }
 
+    var widgetSnapshot: BluetoothBatterySnapshot?
+        get() {
+            val deviceAddress = preferences.getString(KEY_WIDGET_DEVICE_ADDRESS, null) ?: return null
+            val deviceName = preferences.getString(KEY_WIDGET_DEVICE_NAME, null) ?: return null
+            val timestamp = preferences.getLong(KEY_WIDGET_TIMESTAMP, System.currentTimeMillis())
+            return BluetoothBatterySnapshot(
+                deviceAddress = deviceAddress,
+                deviceName = deviceName,
+                batteryLevel = preferences.getIntOrNull(KEY_WIDGET_BATTERY_LEVEL),
+                leftLevel = preferences.getIntOrNull(KEY_WIDGET_LEFT_LEVEL),
+                rightLevel = preferences.getIntOrNull(KEY_WIDGET_RIGHT_LEVEL),
+                caseLevel = preferences.getIntOrNull(KEY_WIDGET_CASE_LEVEL),
+                isConnected = true,
+                timestamp = timestamp,
+            )
+        }
+        set(value) {
+            if (value == null || !value.isConnected) {
+                preferences.edit()
+                    .remove(KEY_WIDGET_DEVICE_ADDRESS)
+                    .remove(KEY_WIDGET_DEVICE_NAME)
+                    .remove(KEY_WIDGET_BATTERY_LEVEL)
+                    .remove(KEY_WIDGET_LEFT_LEVEL)
+                    .remove(KEY_WIDGET_RIGHT_LEVEL)
+                    .remove(KEY_WIDGET_CASE_LEVEL)
+                    .remove(KEY_WIDGET_TIMESTAMP)
+                    .apply()
+                return
+            }
+            preferences.edit()
+                .putString(KEY_WIDGET_DEVICE_ADDRESS, value.deviceAddress)
+                .putString(KEY_WIDGET_DEVICE_NAME, value.deviceName)
+                .putIntOrRemove(KEY_WIDGET_BATTERY_LEVEL, value.batteryLevel)
+                .putIntOrRemove(KEY_WIDGET_LEFT_LEVEL, value.leftLevel)
+                .putIntOrRemove(KEY_WIDGET_RIGHT_LEVEL, value.rightLevel)
+                .putIntOrRemove(KEY_WIDGET_CASE_LEVEL, value.caseLevel)
+                .putLong(KEY_WIDGET_TIMESTAMP, value.timestamp)
+                .apply()
+        }
+
     var disconnectedSinceMillis: Long?
         get() = preferences.getLongOrNull(KEY_DISCONNECTED_SINCE)
         set(value) = preferences.edit().putLongOrRemove(KEY_DISCONNECTED_SINCE, value).apply()
@@ -243,6 +283,13 @@ class AppPreferences(context: Context) {
         private const val KEY_LAST_RIGHT_LEVEL = "last_right_level"
         private const val KEY_LAST_CASE_LEVEL = "last_case_level"
         private const val KEY_LAST_TIMESTAMP = "last_timestamp"
+        private const val KEY_WIDGET_DEVICE_ADDRESS = "widget_device_address"
+        private const val KEY_WIDGET_DEVICE_NAME = "widget_device_name"
+        private const val KEY_WIDGET_BATTERY_LEVEL = "widget_battery_level"
+        private const val KEY_WIDGET_LEFT_LEVEL = "widget_left_level"
+        private const val KEY_WIDGET_RIGHT_LEVEL = "widget_right_level"
+        private const val KEY_WIDGET_CASE_LEVEL = "widget_case_level"
+        private const val KEY_WIDGET_TIMESTAMP = "widget_timestamp"
         private const val KEY_DISCONNECTED_SINCE = "disconnected_since"
         private const val KEY_HEADPHONE_HISTORY = "headphone_history"
         private const val JSON_DEVICE_ADDRESS = "deviceAddress"
