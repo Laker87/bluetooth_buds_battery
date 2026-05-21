@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.os.Bundle
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
@@ -29,8 +30,18 @@ class BatteryWidgetProvider : AppWidgetProvider() {
     ) {
         val snapshot: BluetoothBatterySnapshot? = null
         appWidgetIds.forEach { widgetId ->
-            appWidgetManager.updateAppWidget(widgetId, buildRemoteViews(context, snapshot))
+            updateWidget(context, appWidgetManager, widgetId, snapshot)
         }
+    }
+
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle,
+    ) {
+        super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
+        updateWidget(context, appWidgetManager, appWidgetId, null)
     }
 
     companion object {
@@ -39,15 +50,33 @@ class BatteryWidgetProvider : AppWidgetProvider() {
             val componentName = ComponentName(context, BatteryWidgetProvider::class.java)
             val ids = appWidgetManager.getAppWidgetIds(componentName)
             if (ids.isEmpty()) return
-            val views = buildRemoteViews(context, snapshot)
-            appWidgetManager.updateAppWidget(ids, views)
+            ids.forEach { widgetId ->
+                updateWidget(context, appWidgetManager, widgetId, snapshot)
+            }
+        }
+
+        private fun updateWidget(
+            context: Context,
+            appWidgetManager: AppWidgetManager,
+            widgetId: Int,
+            snapshot: BluetoothBatterySnapshot?,
+        ) {
+            val options = appWidgetManager.getAppWidgetOptions(widgetId)
+            appWidgetManager.updateAppWidget(widgetId, buildRemoteViews(context, snapshot, options))
         }
 
         private fun buildRemoteViews(
             context: Context,
             snapshot: BluetoothBatterySnapshot?,
+            options: Bundle?,
         ): RemoteViews {
-            val views = RemoteViews(context.packageName, R.layout.widget_battery)
+            val useCompactSingleLayout = shouldUseCompactSingleLayout(snapshot, options)
+            val layoutId = if (useCompactSingleLayout) {
+                R.layout.widget_battery_compact
+            } else {
+                R.layout.widget_battery
+            }
+            val views = RemoteViews(context.packageName, layoutId)
             val appTheme = AppPreferences(context).appTheme
             applyTheme(views, context, appTheme)
             val openAppIntent = PendingIntent.getActivity(
@@ -69,7 +98,12 @@ class BatteryWidgetProvider : AppWidgetProvider() {
                 views.setTextViewText(R.id.widgetSingleLabel, context.getString(R.string.main_battery))
                 views.setImageViewBitmap(
                     R.id.widgetSingleRing,
-                    buildRoundedRingBitmap(context, appTheme, sizeDp = 64f, level = null),
+                    buildRoundedRingBitmap(
+                        context,
+                        appTheme,
+                        sizeDp = if (useCompactSingleLayout) 56f else 64f,
+                        level = null,
+                    ),
                 )
                 return views
             }
@@ -113,7 +147,12 @@ class BatteryWidgetProvider : AppWidgetProvider() {
                 views.setTextViewText(R.id.widgetSingleLabel, context.getString(R.string.main_battery))
                 views.setImageViewBitmap(
                     R.id.widgetSingleRing,
-                    buildRoundedRingBitmap(context, appTheme, sizeDp = 64f, level = snapshot.primaryLevel),
+                    buildRoundedRingBitmap(
+                        context,
+                        appTheme,
+                        sizeDp = if (useCompactSingleLayout) 56f else 64f,
+                        level = snapshot.primaryLevel,
+                    ),
                 )
             }
 
@@ -227,6 +266,18 @@ class BatteryWidgetProvider : AppWidgetProvider() {
             }
         }
 
+        private fun shouldUseCompactSingleLayout(
+            snapshot: BluetoothBatterySnapshot?,
+            options: Bundle?,
+        ): Boolean {
+            if (snapshot?.hasSplitLevels == true) return false
+            val minWidthDp = options?.getInt(
+                AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH,
+                Int.MAX_VALUE,
+            ) ?: Int.MAX_VALUE
+            return minWidthDp <= COMPACT_SINGLE_MAX_WIDTH_DP
+        }
+
         private fun applyTheme(
             views: RemoteViews,
             context: Context,
@@ -258,5 +309,7 @@ class BatteryWidgetProvider : AppWidgetProvider() {
             views.setTextColor(R.id.widgetRightLabel, secondary)
             views.setTextColor(R.id.widgetSingleLabel, secondary)
         }
+
+        private const val COMPACT_SINGLE_MAX_WIDTH_DP = 110
     }
 }
