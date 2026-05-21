@@ -60,6 +60,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -79,12 +80,6 @@ import com.laker.btbudsbattery.domain.model.BluetoothBatterySnapshot
 import com.laker.btbudsbattery.presentation.MainViewModel
 import com.laker.btbudsbattery.presentation.MainUiState
 import com.laker.btbudsbattery.service.BluetoothBatteryService
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Settings
 import java.text.DateFormat
 import java.util.Date
 
@@ -375,7 +370,7 @@ private fun BluetoothBatteryApp(
                     if (isSettingsOpen) {
                         IconButton(onClick = { isSettingsOpen = false }) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                painter = painterResource(R.drawable.ic_arrow_back_24),
                                 contentDescription = stringResource(R.string.back),
                             )
                         }
@@ -385,13 +380,13 @@ private fun BluetoothBatteryApp(
                     if (!isSettingsOpen) {
                         IconButton(onClick = onOpenBluetoothSettings) {
                             Icon(
-                                imageVector = Icons.Default.Bluetooth,
+                                painter = painterResource(R.drawable.ic_bluetooth_24),
                                 contentDescription = stringResource(R.string.bluetooth_settings_title),
                             )
                         }
                         IconButton(onClick = { isSettingsOpen = true }) {
                             Icon(
-                                imageVector = Icons.Default.Settings,
+                                painter = painterResource(R.drawable.ic_settings_24),
                                 contentDescription = stringResource(R.string.settings_title),
                             )
                         }
@@ -1044,7 +1039,9 @@ private fun HeadphoneHistoryCard(
                             style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
                         )
                         Icon(
-                            imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            painter = painterResource(
+                                if (expanded) R.drawable.ic_expand_less_24 else R.drawable.ic_expand_more_24,
+                            ),
                             contentDescription = null,
                         )
                     }
