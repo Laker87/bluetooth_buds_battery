@@ -217,15 +217,17 @@ class MainActivity : AppCompatActivity() {
                 permission = Manifest.permission.BLUETOOTH_SCAN,
                 labelRes = R.string.permission_bluetooth_scan,
             ),
-            RequiredPermissionSpec(
+        )
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.R) {
+            specs += RequiredPermissionSpec(
                 permission = Manifest.permission.ACCESS_COARSE_LOCATION,
                 labelRes = R.string.permission_location_coarse,
-            ),
-            RequiredPermissionSpec(
+            )
+            specs += RequiredPermissionSpec(
                 permission = Manifest.permission.ACCESS_FINE_LOCATION,
                 labelRes = R.string.permission_location_fine,
-            ),
-        )
+            )
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             specs += RequiredPermissionSpec(
                 permission = Manifest.permission.POST_NOTIFICATIONS,

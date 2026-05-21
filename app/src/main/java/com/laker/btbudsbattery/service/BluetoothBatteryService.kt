@@ -31,6 +31,7 @@ import com.laker.btbudsbattery.domain.model.BluetoothBatterySnapshot
 import com.laker.btbudsbattery.domain.usecase.ObserveBatteryEventsUseCase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.catch
@@ -41,10 +42,12 @@ class BluetoothBatteryService : Service() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private lateinit var notificationManager: NotificationManager
-    private lateinit var observeBatteryEventsUseCase: ObserveBatteryEventsUseCase
     private lateinit var appPreferences: AppPreferences
     private val lastDelivered = LinkedHashMap<String, BluetoothBatterySnapshot>()
     private val ringBitmapCache = HashMap<String, Bitmap>()
+    private var observeJob: Job? = null
+    @Volatile
+    private var lastObserveRestartAtMs: Long = 0L
     @Volatile
     private var isInForegroundMode = false
 
@@ -59,34 +62,7 @@ class BluetoothBatteryService : Service() {
             return
         }
 
-        val repository = BluetoothBatteryRepositoryImpl(
-            context = applicationContext,
-            ioContext = Dispatchers.IO,
-        )
-        observeBatteryEventsUseCase = ObserveBatteryEventsUseCase(repository)
-
-        serviceScope.launch {
-            observeBatteryEventsUseCase()
-                .catch { /* keep service alive on stream errors */ }
-                .collect { snapshot ->
-                    val previousByAddress = lastDelivered[snapshot.deviceAddress]
-                    val previousVisible = findPreviousVisibleSnapshot(snapshot)
-                    val merged = mergeForReconnect(previousVisible, snapshot)
-                    FastPairEventBus.emit(merged)
-                    persistLastKnownBattery(previousByAddress, merged)
-
-                    if (merged.isConnected) {
-                        if (shouldShowNotification(previousByAddress, merged)) {
-                            showFastPairNotification(merged)
-                        }
-                    }
-                    lastDelivered[snapshot.deviceAddress] = merged
-
-                    if (!hasAnyConnectedDevices()) {
-                        hideForegroundNotificationCompletely()
-                    }
-                }
-        }
+        restartObservePipeline(reason = "service_create", force = true)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -97,14 +73,22 @@ class BluetoothBatteryService : Service() {
         }
         when (intent?.action) {
             ACTION_STOP_MONITORING -> stopSelf()
-            ACTION_START_MONITORING -> ensureForegroundModeWithCurrentNotification()
+            ACTION_START_MONITORING -> {
+                ensureForegroundModeWithCurrentNotification()
+                ensureObservePipelineRunning()
+                restartObservePipeline(reason = "start_monitoring_connect_event")
+            }
             ACTION_REFRESH_NOTIFICATION -> refreshActiveNotification()
-            ACTION_BOOT_RESTORE_MONITORING -> Unit
+            ACTION_BOOT_RESTORE_MONITORING -> {
+                ensureObservePipelineRunning()
+                restartObservePipeline(reason = "boot_restore_or_user_unlock")
+            }
         }
         return START_NOT_STICKY
     }
 
     override fun onDestroy() {
+        observeJob?.cancel()
         serviceScope.cancel()
         super.onDestroy()
     }
@@ -469,6 +453,53 @@ class BluetoothBatteryService : Service() {
         }
     }
 
+    private fun ensureObservePipelineRunning() {
+        if (observeJob?.isActive == true) return
+        restartObservePipeline(reason = "ensure_running", force = true)
+    }
+
+    private fun restartObservePipeline(
+        reason: String,
+        force: Boolean = false,
+    ) {
+        val now = System.currentTimeMillis()
+        if (!force && now - lastObserveRestartAtMs < OBSERVE_RESTART_THROTTLE_MS) {
+            return
+        }
+        lastObserveRestartAtMs = now
+        observeJob?.cancel()
+        val repository = BluetoothBatteryRepositoryImpl(
+            context = applicationContext,
+            ioContext = Dispatchers.IO,
+        )
+        val observeBatteryEventsUseCase = ObserveBatteryEventsUseCase(repository)
+        observeJob = serviceScope.launch {
+            Log.d(LOG_TAG, "source=observe_restart reason=$reason")
+            observeBatteryEventsUseCase()
+                .catch { error ->
+                    Log.w(LOG_TAG, "source=observe_error reason=$reason error=${error.javaClass.simpleName}")
+                }
+                .collect { snapshot ->
+                    val previousByAddress = lastDelivered[snapshot.deviceAddress]
+                    val previousVisible = findPreviousVisibleSnapshot(snapshot)
+                    val merged = mergeForReconnect(previousVisible, snapshot)
+                    FastPairEventBus.emit(merged)
+                    persistLastKnownBattery(previousByAddress, merged)
+
+                    if (merged.isConnected) {
+                        if (shouldShowNotification(previousByAddress, merged)) {
+                            showFastPairNotification(merged)
+                        }
+                    }
+                    lastDelivered[snapshot.deviceAddress] = merged
+
+                    if (!hasAnyConnectedDevices()) {
+                        hideForegroundNotificationCompletely()
+                    }
+                }
+        }
+    }
+
     private fun latestConnectedSnapshot(): BluetoothBatterySnapshot? {
         return lastDelivered.values.lastOrNull { it.isConnected }
     }
@@ -590,6 +621,7 @@ class BluetoothBatteryService : Service() {
         private const val SERVICE_NOTIFICATION_ID = 1001
         private const val FAST_PAIR_NOTIFICATION_ID = SERVICE_NOTIFICATION_ID
         private const val SPLIT_FLICKER_WINDOW_MS = 20_000L
+        private const val OBSERVE_RESTART_THROTTLE_MS = 2_500L
 
         const val ACTION_START_MONITORING = "com.laker.btbudsbattery.action.START_MONITORING"
         const val ACTION_STOP_MONITORING = "com.laker.btbudsbattery.action.STOP_MONITORING"

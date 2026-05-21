@@ -33,9 +33,13 @@ class BluetoothConnectionReceiver : BroadcastReceiver() {
             this.action = action
         }
         if (action == BluetoothBatteryService.ACTION_START_MONITORING) {
-            ContextCompat.startForegroundService(context, serviceIntent)
+            runCatching {
+                ContextCompat.startForegroundService(context, serviceIntent)
+            }
         } else {
-            context.startService(serviceIntent)
+            runCatching {
+                context.startService(serviceIntent)
+            }
         }
     }
 

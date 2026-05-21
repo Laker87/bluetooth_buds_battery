@@ -3,6 +3,7 @@
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import androidx.core.content.ContextCompat
 import com.laker.btbudsbattery.core.AppPreferences
 import com.laker.btbudsbattery.core.RuntimePermissionGate
 import com.laker.btbudsbattery.service.BluetoothBatteryService
@@ -20,7 +21,9 @@ class BootCompletedReceiver : BroadcastReceiver() {
         val startIntent = Intent(context, BluetoothBatteryService::class.java).apply {
             action = BluetoothBatteryService.ACTION_BOOT_RESTORE_MONITORING
         }
-        context.startService(startIntent)
+        runCatching {
+            ContextCompat.startForegroundService(context, startIntent)
+        }
     }
 }
 

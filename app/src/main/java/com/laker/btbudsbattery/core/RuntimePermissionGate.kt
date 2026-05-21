@@ -17,9 +17,11 @@ object RuntimePermissionGate {
         val permissions = mutableListOf(
             Manifest.permission.BLUETOOTH_CONNECT,
             Manifest.permission.BLUETOOTH_SCAN,
-            Manifest.permission.ACCESS_COARSE_LOCATION,
-            Manifest.permission.ACCESS_FINE_LOCATION,
         )
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.R) {
+            permissions += Manifest.permission.ACCESS_COARSE_LOCATION
+            permissions += Manifest.permission.ACCESS_FINE_LOCATION
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissions += Manifest.permission.POST_NOTIFICATIONS
         }
