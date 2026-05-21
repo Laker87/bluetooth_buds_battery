@@ -14,5 +14,8 @@
     <color name="fast_pair_ring_right">#4D83F6</color>
     <color name="fast_pair_ring_warning">#F59E0B</color>
     <color name="fast_pair_ring_critical">#EF4444</color>
+    <color name="widget_text_primary_light">#1F2937</color>
+    <color name="widget_text_secondary_light">#6B7280</color>
+    <color name="widget_ring_track_light">#D1D5DB</color>
     <color name="launcher_bg">#DCEFD8</color>
 </resources>

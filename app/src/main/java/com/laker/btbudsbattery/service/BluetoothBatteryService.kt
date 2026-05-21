@@ -29,6 +29,7 @@ import com.laker.btbudsbattery.core.RuntimePermissionGate
 import com.laker.btbudsbattery.data.BluetoothBatteryRepositoryImpl
 import com.laker.btbudsbattery.domain.model.BluetoothBatterySnapshot
 import com.laker.btbudsbattery.domain.usecase.ObserveBatteryEventsUseCase
+import com.laker.btbudsbattery.widget.BatteryWidgetProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -79,6 +80,7 @@ class BluetoothBatteryService : Service() {
                 restartObservePipeline(reason = "start_monitoring_connect_event")
             }
             ACTION_REFRESH_NOTIFICATION -> refreshActiveNotification()
+            ACTION_REFRESH_WIDGET -> BatteryWidgetProvider.updateAll(this, latestConnectedSnapshot())
             ACTION_BOOT_RESTORE_MONITORING -> {
                 ensureObservePipelineRunning()
                 restartObservePipeline(reason = "boot_restore_or_user_unlock")
@@ -483,15 +485,16 @@ class BluetoothBatteryService : Service() {
                     val previousByAddress = lastDelivered[snapshot.deviceAddress]
                     val previousVisible = findPreviousVisibleSnapshot(snapshot)
                     val merged = mergeForReconnect(previousVisible, snapshot)
+                    lastDelivered[snapshot.deviceAddress] = merged
                     FastPairEventBus.emit(merged)
                     persistLastKnownBattery(previousByAddress, merged)
+                    BatteryWidgetProvider.updateAll(this@BluetoothBatteryService, latestConnectedSnapshot())
 
                     if (merged.isConnected) {
                         if (shouldShowNotification(previousByAddress, merged)) {
                             showFastPairNotification(merged)
                         }
                     }
-                    lastDelivered[snapshot.deviceAddress] = merged
 
                     if (!hasAnyConnectedDevices()) {
                         hideForegroundNotificationCompletely()
@@ -626,6 +629,7 @@ class BluetoothBatteryService : Service() {
         const val ACTION_START_MONITORING = "com.laker.btbudsbattery.action.START_MONITORING"
         const val ACTION_STOP_MONITORING = "com.laker.btbudsbattery.action.STOP_MONITORING"
         const val ACTION_REFRESH_NOTIFICATION = "com.laker.btbudsbattery.action.REFRESH_NOTIFICATION"
+        const val ACTION_REFRESH_WIDGET = "com.laker.btbudsbattery.action.REFRESH_WIDGET"
         const val ACTION_BOOT_RESTORE_MONITORING = "com.laker.btbudsbattery.action.BOOT_RESTORE_MONITORING"
     }
 }

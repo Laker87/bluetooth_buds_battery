@@ -166,7 +166,10 @@ class MainActivity : AppCompatActivity() {
                         viewModel.onMonitoringChanged(this@MainActivity, enabled)
                     }
                 },
-                onThemeChanged = viewModel::onThemeChanged,
+                onThemeChanged = { theme ->
+                    viewModel.onThemeChanged(theme)
+                    refreshWidgetAppearance()
+                },
                 onLanguageChanged = { language ->
                     viewModel.onLanguageChanged(language)
                     applyAppLanguage(language)
@@ -290,6 +293,14 @@ class MainActivity : AppCompatActivity() {
         if (!appPreferences.monitoringEnabled || !hasAllPermissions) return
         val intent = Intent(this, BluetoothBatteryService::class.java).apply {
             action = BluetoothBatteryService.ACTION_REFRESH_NOTIFICATION
+        }
+        startService(intent)
+    }
+
+    private fun refreshWidgetAppearance() {
+        if (!appPreferences.monitoringEnabled || !hasAllPermissions) return
+        val intent = Intent(this, BluetoothBatteryService::class.java).apply {
+            action = BluetoothBatteryService.ACTION_REFRESH_WIDGET
         }
         startService(intent)
     }
