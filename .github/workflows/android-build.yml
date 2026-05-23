@@ -1,0 +1,124 @@
+name: Android Build
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: Publish APK to GitHub Releases
+        required: false
+        default: false
+        type: boolean
+      tag_name:
+        description: Release tag, for example v1.1
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make Gradle executable
+        run: chmod +x ./gradlew
+
+      - name: Remove local Java home override
+        run: sed -i '/^org.gradle.java.home=/d' gradle.properties
+
+      - name: Configure release signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ -n "$ANDROID_KEYSTORE_PASSWORD" ] && [ -n "$ANDROID_KEY_ALIAS" ] && [ -n "$ANDROID_KEY_PASSWORD" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > release.keystore
+            printf '%s\n' \
+              "storeFile=release.keystore" \
+              "storePassword=$ANDROID_KEYSTORE_PASSWORD" \
+              "keyAlias=$ANDROID_KEY_ALIAS" \
+              "keyPassword=$ANDROID_KEY_PASSWORD" \
+              > keystore.properties
+            echo "Release signing is configured."
+          else
+            echo "Release signing secrets are not configured. assembleRelease will produce an unsigned APK."
+          fi
+
+      - name: Build release APK
+        run: ./gradlew assembleRelease
+
+      - name: Prepare APK file
+        id: apk
+        run: |
+          set -euo pipefail
+
+          APP_NAME=$(sed -n 's/.*<string name="app_name">\([^<]*\)<\/string>.*/\1/p' app/src/main/res/values/strings.xml | head -n 1)
+          VERSION_NAME=$(sed -n 's/.*versionName = "\([^"]*\)".*/\1/p' app/build.gradle.kts | head -n 1)
+          SAFE_APP_NAME=$(printf '%s' "$APP_NAME" | tr '[:space:]' '-' | tr -cd '[:alnum:]._-')
+          SOURCE_APK=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          TARGET_DIR=app/build/outputs/release
+          TARGET_APK="$TARGET_DIR/${SAFE_APP_NAME}-v${VERSION_NAME}.apk"
+
+          mkdir -p "$TARGET_DIR"
+          cp "$SOURCE_APK" "$TARGET_APK"
+
+          echo "apk_path=$TARGET_APK" >> "$GITHUB_OUTPUT"
+          echo "release_title=$APP_NAME v$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Upload release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apk
+          path: ${{ steps.apk.outputs.apk_path }}
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.publish_release)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_TAG_NAME: ${{ inputs.tag_name }}
+          APK_PATH: ${{ steps.apk.outputs.apk_path }}
+          RELEASE_TITLE: ${{ steps.apk.outputs.release_title }}
+          VERSION_NAME: ${{ steps.apk.outputs.version_name }}
+        run: |
+          set -euo pipefail
+
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            TAG_NAME="$INPUT_TAG_NAME"
+            if [ -z "$TAG_NAME" ]; then
+              TAG_NAME="v$VERSION_NAME"
+            fi
+          else
+            TAG_NAME="$GITHUB_REF_NAME"
+          fi
+
+          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release upload "$TAG_NAME" "$APK_PATH" --clobber
+          else
+            gh release create "$TAG_NAME" "$APK_PATH" --title "$RELEASE_TITLE" --notes "Automated release build." --target "$GITHUB_SHA"
+          fi
