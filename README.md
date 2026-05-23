@@ -1,102 +1,121 @@
-# Bluetooth Buds Battery
+﻿# Bluetooth Buds Battery
 
-Android-приложение для мониторинга заряда Bluetooth-наушников (включая TWS) с кастомным уведомлением в стиле Fast Pair.
+[English version](README.en.md)
 
-## Актуальные данные проекта
-
-- Название приложения: `Bluetooth Buds Battery`
-- Package / Application ID: `com.laker.btbudsbattery`
-- Минимальная версия Android: `minSdk = 31` (Android 12+)
-- Целевая версия Android: `targetSdk = 36`
-- JDK: `17`
+Android-приложение для мониторинга заряда Bluetooth-наушников. Показывает общий заряд или раздельный заряд `L / R / Case`, если модель наушников передает такие данные.
 
 ## Возможности
 
-- Фоновый мониторинг подключенных Bluetooth-наушников.
-- Источники заряда:
-  - общий заряд (`Battery`),
-  - раздельный `L / R / Case` (если устройство передает эти данные).
-- Кастомное уведомление:
-  - компактный и развернутый вид,
-  - круговые индикаторы заряда.
-- Главный экран:
-  - текущий статус подключенного устройства,
-  - история ранее подключенных наушников,
-  - для истории: если доступны `L/R/Case`, показываются раздельно; иначе одиночный заряд.
-- Экран первоначальной настройки:
-  - запрос необходимых разрешений при первом запуске.
-- Мониторинг включен по умолчанию для новых установок.
+- Отображение текущего заряда подключенных Bluetooth-наушников.
+- Поддержка одиночного заряда `Battery` и раздельного заряда `Left / Right / Case`.
+- Фоновый мониторинг подключений и обновлений заряда.
+- Компактное и развернутое уведомление с круговыми индикаторами.
+- Виджет рабочего стола в стиле развернутого уведомления.
+- История ранее подключенных наушников с последним известным зарядом.
+- Первоначальная настройка с пошаговым запросом разрешений.
+- Настройки темы, языка и акцентного цвета.
+- GitHub Actions workflow для release-сборки и публикации APK в GitHub Releases.
+
+## Скриншоты
+
+| Главный экран | Развернутое уведомление | Компактное уведомление |
+| --- | --- | --- |
+| ![Главный экран](store-assets/screenshots/ru/Bluetooth_Buds_Battery1.jpg) | ![Развернутое уведомление](store-assets/screenshots/ru/Bluetooth_Buds_Battery6.jpg) | ![Компактное уведомление](store-assets/screenshots/ru/Bluetooth_Buds_Battery4.jpg) |
+
+## Данные проекта
+
+- Название приложения: `Bluetooth Buds Battery`
+- Application ID: `com.laker.btbudsbattery`
+- Минимальная версия Android: `minSdk = 31` / Android 12+
+- Целевая версия Android: `targetSdk = 36`
+- JDK: `17`
+- Текущая версия: `1.1`
+
+## Поддерживаемые источники заряда
+
+Приложение использует несколько источников данных:
+
+- стандартные Bluetooth-профили и системный уровень заряда;
+- BLE advertisement/service data для отдельных TWS-моделей;
+- Apple Continuity payload для AirPods и Beats;
+- vendor events и Bluetooth audio device callbacks, где это доступно.
+
+Поддержка раздельного `L / R / Case` зависит от модели наушников и от того, какие данные она передает Android. Если раздельные данные недоступны, приложение показывает одиночный заряд.
+
+## Поддерживаемые модели
+
+Проверенная и целевая поддержка:
+
+- Realme Buds T310: `L / R / Case`.
+- Apple AirPods 1 / 2 / 3.
+- Apple AirPods Pro / Pro 2 / Pro 3.
+- Apple AirPods Max.
+- Beats X, Beats Flex, Beats Solo 3, Beats Studio 3, Beats Solo Pro, Beats Studio Pro, Beats Solo 4.
+- Beats Fit Pro, Beats Studio Buds, Beats Studio Buds+, Beats Solo Buds.
+
+Для Apple/Beats данные часто приходят крупными шагами, например по 10%, потому что так передается публично доступный BLE payload.
+
+## Как добавить новую модель
+
+Если ваша модель показывает заряд в системных настройках Android, но приложение не видит `L / R / Case`, нужны данные для анализа:
+
+- модель наушников;
+- версия Android и модель смартфона;
+- скриншот системного экрана Bluetooth с корректным зарядом;
+- `Bluetooth HCI Snoop Log`, если есть возможность его получить;
+- лог приложения с тегами `BtBatteryRepo`, `BluetoothBatteryService`, `BluetoothConnectionReceiver`.
+
+Новые TWS-парсеры добавляются модульно:
+
+- общий контракт: `app/src/main/java/com/laker/btbudsbattery/data/parser/tws/TwsBatteryAdvertisementParser.kt`
+- реестр: `app/src/main/java/com/laker/btbudsbattery/data/parser/tws/TwsBatteryParserRegistry.kt`
+- пример модели: `app/src/main/java/com/laker/btbudsbattery/data/parser/tws/realme/RealmeT310FastPairParser.kt`
 
 ## Разрешения
 
-Приложение использует:
+Runtime-разрешения:
 
-- `BLUETOOTH_CONNECT`
-- `BLUETOOTH_SCAN`
-- `ACCESS_COARSE_LOCATION`
-- `ACCESS_FINE_LOCATION`
-- `POST_NOTIFICATIONS` (Android 13+)
-- `FOREGROUND_SERVICE`
-- `FOREGROUND_SERVICE_CONNECTED_DEVICE`
-- `RECEIVE_BOOT_COMPLETED`
+- `BLUETOOTH_CONNECT` — доступ к подключенным Bluetooth-устройствам.
+- `BLUETOOTH_SCAN` — получение Bluetooth/BLE данных.
+- `POST_NOTIFICATIONS` — показ уведомления мониторинга на Android 13+.
+- `ACCESS_COARSE_LOCATION` и `ACCESS_FINE_LOCATION` — только Android 11 и ниже, где система связывает Bluetooth-сканирование с разрешением местоположения.
 
-Без Bluetooth/Location/Notification разрешений фоновые обновления и уведомления не будут работать.
+Manifest-only разрешения:
 
-## Источники батареи и архитектура парсинга
+- `BLUETOOTH` и `BLUETOOTH_ADMIN` — только Android 11 и ниже.
+- `FOREGROUND_SERVICE`.
+- `FOREGROUND_SERVICE_CONNECTED_DEVICE`.
 
-Приложение собирает данные из нескольких источников (профили Bluetooth, BLE scan, metadata, vendor events).
-
-Для BLE TWS-парсинга используется модульная схема:
-
-- общий контракт парсера:  
-  `app/src/main/java/com/laker/btbudsbattery/data/parser/tws/TwsBatteryAdvertisementParser.kt`
-- реестр парсеров:  
-  `app/src/main/java/com/laker/btbudsbattery/data/parser/tws/TwsBatteryParserRegistry.kt`
-- отдельный модуль для Realme T310:  
-  `app/src/main/java/com/laker/btbudsbattery/data/parser/tws/realme/RealmeT310FastPairSpec.kt`  
-  `app/src/main/java/com/laker/btbudsbattery/data/parser/tws/realme/RealmeT310FastPairParser.kt`
-
-Это позволяет добавлять поддержку новых моделей как отдельные парсеры без изменения основной логики репозитория.
+`BLUETOOTH_SCAN` объявлен с `android:usesPermissionFlags="neverForLocation"`.
 
 ## Сборка
 
-Windows:
+Debug:
 
 ```powershell
 .\gradlew.bat assembleDebug
 ```
 
-APK после сборки:
-
-```text
-app/build/outputs/apk/debug/app-debug.apk
-```
-
-## Линт и проверка
+Release:
 
 ```powershell
-.\gradlew.bat lintDebug
+.\gradlew.bat assembleRelease
 ```
 
-HTML-отчет:
+Release APK:
 
 ```text
-app/build/reports/lint-results-debug.html
+app/build/outputs/apk/release/app-release.apk
 ```
 
-## Структура проекта (основное)
-
-- `app/src/main/java/com/laker/btbudsbattery/MainActivity.kt`
-- `app/src/main/java/com/laker/btbudsbattery/presentation/MainViewModel.kt`
-- `app/src/main/java/com/laker/btbudsbattery/service/BluetoothBatteryService.kt`
-- `app/src/main/java/com/laker/btbudsbattery/data/BluetoothBatteryRepositoryImpl.kt`
-- `app/src/main/res/layout/layout_fast_pair_notification.xml`
+Release-сборка включает R8 и shrink resources.
 
 ## Ограничения
 
-- Поведение уведомлений может отличаться в разных оболочках Android.
-- Не все модели наушников отдают `L/R/Case`; в этом случае доступен только общий уровень.
-- Для части устройств значения могут приходить с задержкой или в «грубом» шаге (например, по 10%).
+- Не все Bluetooth-наушники передают раздельный заряд `L / R / Case`.
+- На некоторых моделях заряд обновляется с задержкой или крупными шагами.
+- Поведение фонового сервиса и уведомлений может отличаться на разных оболочках Android.
+- Приложение не использует чтение уведомлений Google Fast Pair.
 
 ## Лицензия
 
