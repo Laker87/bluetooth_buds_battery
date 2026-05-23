@@ -1,19 +1,16 @@
 ﻿package com.laker.btbudsbattery.service
 
-import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.app.ForegroundServiceStartNotAllowedException
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
-import android.os.Build
 import android.os.IBinder
 import android.view.View
 import android.widget.RemoteViews
@@ -44,6 +41,7 @@ class BluetoothBatteryService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private lateinit var notificationManager: NotificationManager
     private lateinit var appPreferences: AppPreferences
+    private val stateLock = Any()
     private val lastDelivered = LinkedHashMap<String, BluetoothBatterySnapshot>()
     private val ringBitmapCache = HashMap<String, Bitmap>()
     private var observeJob: Job? = null
@@ -57,7 +55,7 @@ class BluetoothBatteryService : Service() {
         notificationManager = getSystemService(NotificationManager::class.java)
         appPreferences = AppPreferences(applicationContext)
         createChannels()
-        if (!RuntimePermissionGate.hasAllRequiredPermissions(this)) {
+        if (!RuntimePermissionGate.hasMonitoringPermissions(this)) {
             hideForegroundNotificationCompletely()
             stopSelf()
             return
@@ -67,7 +65,7 @@ class BluetoothBatteryService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (!RuntimePermissionGate.hasAllRequiredPermissions(this)) {
+        if (!RuntimePermissionGate.hasMonitoringPermissions(this)) {
             hideForegroundNotificationCompletely()
             stopSelf()
             return START_NOT_STICKY
@@ -82,6 +80,7 @@ class BluetoothBatteryService : Service() {
             ACTION_REFRESH_NOTIFICATION -> refreshActiveNotification()
             ACTION_REFRESH_WIDGET -> BatteryWidgetProvider.updateAll(this, latestConnectedSnapshot())
             ACTION_BOOT_RESTORE_MONITORING -> {
+                ensureForegroundModeWithCurrentNotification()
                 ensureObservePipelineRunning()
                 restartObservePipeline(reason = "boot_restore_or_user_unlock")
             }
@@ -273,7 +272,9 @@ class BluetoothBatteryService : Service() {
         val sizePx = (sizeDp * density).toInt().coerceAtLeast(1)
         val progressColor = resolveBatteryRingProgressColor(level)
         val cacheKey = "$sizePx:${level ?: "null"}:$progressColor"
-        ringBitmapCache[cacheKey]?.let { return it }
+        synchronized(stateLock) {
+            ringBitmapCache[cacheKey]?.let { return it }
+        }
 
         val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
@@ -301,13 +302,17 @@ class BluetoothBatteryService : Service() {
 
         if (clamped >= 100) {
             canvas.drawArc(bounds, -90f, 359.9f, false, progressPaint)
-            ringBitmapCache[cacheKey] = bitmap
+            synchronized(stateLock) {
+                ringBitmapCache[cacheKey] = bitmap
+            }
             return bitmap
         }
         if (clamped <= 0) {
             // Empty state: draw a continuous track ring without any gaps.
             canvas.drawArc(bounds, -90f, 359.9f, false, trackPaint)
-            ringBitmapCache[cacheKey] = bitmap
+            synchronized(stateLock) {
+                ringBitmapCache[cacheKey] = bitmap
+            }
             return bitmap
         }
 
@@ -346,7 +351,9 @@ class BluetoothBatteryService : Service() {
             )
         }
 
-        ringBitmapCache[cacheKey] = bitmap
+        synchronized(stateLock) {
+            ringBitmapCache[cacheKey] = bitmap
+        }
         return bitmap
     }
 
@@ -394,11 +401,7 @@ class BluetoothBatteryService : Service() {
     }
 
     private fun canPostNotifications(): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
-        return ContextCompat.checkSelfPermission(
-            this,
-            Manifest.permission.POST_NOTIFICATIONS,
-        ) == PackageManager.PERMISSION_GRANTED
+        return RuntimePermissionGate.hasNotificationPermission(this)
     }
 
     private fun shouldShowNotification(
@@ -415,7 +418,9 @@ class BluetoothBatteryService : Service() {
     }
 
     private fun hasAnyConnectedDevices(): Boolean {
-        return lastDelivered.values.any { it.isConnected }
+        synchronized(stateLock) {
+            return lastDelivered.values.any { it.isConnected }
+        }
     }
 
     private fun hideForegroundNotificationCompletely() {
@@ -437,7 +442,9 @@ class BluetoothBatteryService : Service() {
     }
 
     private fun refreshActiveNotification() {
-        ringBitmapCache.clear()
+        synchronized(stateLock) {
+            ringBitmapCache.clear()
+        }
         latestConnectedSnapshot()?.let { snapshot ->
             showFastPairNotification(snapshot)
         }
@@ -482,10 +489,16 @@ class BluetoothBatteryService : Service() {
                     Log.w(LOG_TAG, "source=observe_error reason=$reason error=${error.javaClass.simpleName}")
                 }
                 .collect { snapshot ->
-                    val previousByAddress = lastDelivered[snapshot.deviceAddress]
+                    val previousByAddress = synchronized(stateLock) { lastDelivered[snapshot.deviceAddress] }
                     val previousVisible = findPreviousVisibleSnapshot(snapshot)
-                    val merged = mergeForReconnect(previousVisible, snapshot)
-                    lastDelivered[snapshot.deviceAddress] = merged
+                    var merged = mergeForReconnect(previousVisible, snapshot)
+                    if (merged.isConnected) {
+                        synchronized(stateLock) {
+                            lastDelivered[snapshot.deviceAddress] = merged
+                        }
+                    } else {
+                        merged = markDeviceFamilyDisconnected(merged)
+                    }
                     FastPairEventBus.emit(merged)
                     persistLastKnownBattery(previousByAddress, merged)
                     BatteryWidgetProvider.updateAll(this@BluetoothBatteryService, latestConnectedSnapshot())
@@ -504,7 +517,12 @@ class BluetoothBatteryService : Service() {
     }
 
     private fun latestConnectedSnapshot(): BluetoothBatterySnapshot? {
-        return lastDelivered.values.lastOrNull { it.isConnected }
+        synchronized(stateLock) {
+            return lastDelivered.values
+                .asSequence()
+                .filter { it.isConnected }
+                .maxByOrNull { it.timestamp }
+        }
     }
 
     private fun persistLastKnownBattery(
@@ -574,9 +592,11 @@ class BluetoothBatteryService : Service() {
     }
 
     private fun findPreviousVisibleSnapshot(current: BluetoothBatterySnapshot): BluetoothBatterySnapshot? {
-        return lastDelivered.values.lastOrNull { snapshot ->
-            snapshot.deviceAddress == current.deviceAddress ||
-                snapshot.deviceName.normalizedDeviceName() == current.deviceName.normalizedDeviceName()
+        synchronized(stateLock) {
+            return lastDelivered.values.lastOrNull { snapshot ->
+                snapshot.deviceAddress == current.deviceAddress ||
+                    snapshot.deviceName.normalizedDeviceName() == current.deviceName.normalizedDeviceName()
+            }
         }
     }
 
@@ -604,6 +624,28 @@ class BluetoothBatteryService : Service() {
             rightLevel = current.rightLevel ?: previous.rightLevel.takeIf { isReconnect || keepSplitForFlicker },
             caseLevel = current.caseLevel ?: previous.caseLevel.takeIf { isReconnect || keepSplitForFlicker },
         )
+    }
+
+    private fun markDeviceFamilyDisconnected(disconnected: BluetoothBatterySnapshot): BluetoothBatterySnapshot {
+        synchronized(stateLock) {
+            val normalizedName = disconnected.deviceName.normalizedDeviceName()
+            val address = disconnected.deviceAddress
+
+            val keys = lastDelivered.keys.toList()
+            keys.forEach { key ->
+                val current = lastDelivered[key] ?: return@forEach
+                val sameFamily = current.deviceAddress == address ||
+                    current.deviceName.normalizedDeviceName() == normalizedName
+                if (!sameFamily || !current.isConnected) return@forEach
+                lastDelivered[key] = current.copy(
+                    isConnected = false,
+                    timestamp = maxOf(current.timestamp, disconnected.timestamp),
+                )
+            }
+
+            lastDelivered[address] = disconnected.copy(isConnected = false)
+            return lastDelivered[address] ?: disconnected
+        }
     }
 
     private fun shouldKeepPreviousSplitForFlicker(

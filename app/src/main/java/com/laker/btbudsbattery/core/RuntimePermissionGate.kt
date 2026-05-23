@@ -7,23 +7,31 @@ import android.os.Build
 import androidx.core.content.ContextCompat
 
 object RuntimePermissionGate {
-    fun hasAllRequiredPermissions(context: Context): Boolean {
-        return requiredPermissions().all { permission ->
+    fun hasMonitoringPermissions(context: Context): Boolean {
+        return requiredMonitoringPermissions().all { permission ->
             ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
         }
     }
 
-    fun requiredPermissions(): List<String> {
+    fun hasNotificationPermission(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
+        return ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.POST_NOTIFICATIONS,
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    fun requiredMonitoringPermissions(): List<String> {
         val permissions = mutableListOf(
             Manifest.permission.BLUETOOTH_CONNECT,
             Manifest.permission.BLUETOOTH_SCAN,
         )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissions += Manifest.permission.POST_NOTIFICATIONS
+        }
         if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.R) {
             permissions += Manifest.permission.ACCESS_COARSE_LOCATION
             permissions += Manifest.permission.ACCESS_FINE_LOCATION
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            permissions += Manifest.permission.POST_NOTIFICATIONS
         }
         return permissions
     }

@@ -76,6 +76,7 @@ import com.laker.btbudsbattery.core.AppAccentColor
 import com.laker.btbudsbattery.core.AppPreferences
 import com.laker.btbudsbattery.core.AppTheme
 import com.laker.btbudsbattery.core.HeadphoneHistoryEntry
+import com.laker.btbudsbattery.core.RuntimePermissionGate
 import com.laker.btbudsbattery.domain.model.BluetoothBatterySnapshot
 import com.laker.btbudsbattery.presentation.MainViewModel
 import com.laker.btbudsbattery.presentation.MainUiState
@@ -207,33 +208,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun requiredPermissionSpecs(): List<RequiredPermissionSpec> {
-        val specs = mutableListOf(
+        return RuntimePermissionGate.requiredMonitoringPermissions().map { permission ->
             RequiredPermissionSpec(
-                permission = Manifest.permission.BLUETOOTH_CONNECT,
-                labelRes = R.string.permission_bluetooth_connect,
-            ),
-            RequiredPermissionSpec(
-                permission = Manifest.permission.BLUETOOTH_SCAN,
-                labelRes = R.string.permission_bluetooth_scan,
-            ),
-        )
-        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.R) {
-            specs += RequiredPermissionSpec(
-                permission = Manifest.permission.ACCESS_COARSE_LOCATION,
-                labelRes = R.string.permission_location_coarse,
-            )
-            specs += RequiredPermissionSpec(
-                permission = Manifest.permission.ACCESS_FINE_LOCATION,
-                labelRes = R.string.permission_location_fine,
+                permission = permission,
+                labelRes = when (permission) {
+                    Manifest.permission.BLUETOOTH_CONNECT -> R.string.permission_bluetooth_connect
+                    Manifest.permission.BLUETOOTH_SCAN -> R.string.permission_bluetooth_scan
+                    Manifest.permission.ACCESS_COARSE_LOCATION -> R.string.permission_location_coarse
+                    Manifest.permission.ACCESS_FINE_LOCATION -> R.string.permission_location_fine
+                    else -> R.string.permission_notifications
+                },
             )
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            specs += RequiredPermissionSpec(
-                permission = Manifest.permission.POST_NOTIFICATIONS,
-                labelRes = R.string.permission_notifications,
-            )
-        }
-        return specs
     }
 
     private fun requiredPermissions(): Array<String> {

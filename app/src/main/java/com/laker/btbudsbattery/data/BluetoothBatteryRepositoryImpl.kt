@@ -41,6 +41,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withContext
 import java.nio.charset.Charset
+import java.util.Collections
 import java.util.UUID
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.resume
@@ -60,7 +61,7 @@ class BluetoothBatteryRepositoryImpl(
     private val audioManager: AudioManager? =
         context.getSystemService(AudioManager::class.java)
 
-    private val cache = LinkedHashMap<String, BluetoothBatterySnapshot>()
+    private val cache = Collections.synchronizedMap(LinkedHashMap<String, BluetoothBatterySnapshot>())
 
     @Volatile
     private var headsetProxy: BluetoothHeadset? = null
@@ -283,18 +284,20 @@ class BluetoothBatteryRepositoryImpl(
             onSnapshot?.invoke(snapshot)
         }
 
-        cache.values
-            .asSequence()
-            .filter { it.isConnected }
-            .filterNot { it.deviceAddress.startsWith("ble:") }
-            .filterNot { connectedAddresses.contains(it.deviceAddress) }
-            .map { stale -> stale.copy(isConnected = false) }
-            .toList()
-            .forEach { disconnected ->
-                cache[disconnected.deviceAddress] = disconnected
-                logSnapshot("profile_proxy_disconnect", disconnected)
-                onSnapshot?.invoke(disconnected)
-            }
+        val staleConnected = synchronized(cache) {
+            cache.values
+                .asSequence()
+                .filter { it.isConnected }
+                .filterNot { it.deviceAddress.startsWith("ble:") }
+                .filterNot { connectedAddresses.contains(it.deviceAddress) }
+                .map { stale -> stale.copy(isConnected = false) }
+                .toList()
+        }
+        staleConnected.forEach { disconnected ->
+            cache[disconnected.deviceAddress] = disconnected
+            logSnapshot("profile_proxy_disconnect", disconnected)
+            onSnapshot?.invoke(disconnected)
+        }
     }
 
     @SuppressLint("MissingPermission")
@@ -632,8 +635,10 @@ class BluetoothBatteryRepositoryImpl(
     @SuppressLint("MissingPermission")
     private fun findBestKnownDeviceFor(modelName: String): BluetoothDevice? {
         val normalizedModel = modelName.normalizeDeviceName()
-        return cache.values
-            .firstOrNull { it.deviceName.normalizeDeviceName() == normalizedModel }
+        val cachedMatch = synchronized(cache) {
+            cache.values.firstOrNull { it.deviceName.normalizeDeviceName() == normalizedModel }
+        }
+        return cachedMatch
             ?.let { snapshot -> runCatching { bluetoothAdapter?.getRemoteDevice(snapshot.deviceAddress) }.getOrNull() }
             ?: bluetoothAdapter?.bondedDevices.orEmpty().firstOrNull { device ->
                 val name = runCatching { device.alias ?: device.name }.getOrNull().orEmpty()
@@ -647,15 +652,17 @@ class BluetoothBatteryRepositoryImpl(
 
     @SuppressLint("MissingPermission")
     private fun findBestConnectedClassicDevice(): BluetoothDevice? {
-        val connected = cache.values
-            .asSequence()
-            .filter { it.isConnected }
-            .filterNot { it.deviceAddress.startsWith("ble:") || it.deviceAddress.startsWith("blefe2c:") }
-            .mapNotNull { snapshot ->
-                runCatching { bluetoothAdapter?.getRemoteDevice(snapshot.deviceAddress) }.getOrNull()
-            }
-            .distinctBy { it.address }
-            .toList()
+        val connected = synchronized(cache) {
+            cache.values
+                .asSequence()
+                .filter { it.isConnected }
+                .filterNot { it.deviceAddress.startsWith("ble:") || it.deviceAddress.startsWith("blefe2c:") }
+                .mapNotNull { snapshot ->
+                    runCatching { bluetoothAdapter?.getRemoteDevice(snapshot.deviceAddress) }.getOrNull()
+                }
+                .distinctBy { it.address }
+                .toList()
+        }
         return if (connected.size == 1) connected.first() else null
     }
 
