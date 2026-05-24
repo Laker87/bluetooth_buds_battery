@@ -653,8 +653,6 @@ private fun PermissionsCard(
     onRequestSinglePermission: (String) -> Unit,
 ) {
     val hasMissingPermissions = permissionItems.any { !it.granted }
-    val grantedCount = permissionItems.count { it.granted }
-    val totalCount = permissionItems.size
 
     DashboardCard(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -664,19 +662,6 @@ private fun PermissionsCard(
             Text(
                 text = stringResource(R.string.permissions_status_title),
                 style = MaterialTheme.typography.titleMedium,
-            )
-            Text(
-                text = if (hasMissingPermissions) {
-                    stringResource(
-                        R.string.permissions_granted_count,
-                        grantedCount,
-                        totalCount,
-                    )
-                } else {
-                    stringResource(R.string.permission_granted)
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             if (hasMissingPermissions && showRationale) {
                 Text(
