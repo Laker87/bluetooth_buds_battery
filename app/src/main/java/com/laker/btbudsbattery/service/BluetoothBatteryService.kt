@@ -73,14 +73,20 @@ class BluetoothBatteryService : Service() {
         when (intent?.action) {
             ACTION_STOP_MONITORING -> stopSelf()
             ACTION_START_MONITORING -> {
-                ensureForegroundModeWithCurrentNotification()
+                val requireForeground = intent.getBooleanExtra(EXTRA_REQUIRE_FOREGROUND, false)
+                if (requireForeground) {
+                    ensureForegroundModeWithCurrentNotification()
+                }
                 ensureObservePipelineRunning()
                 restartObservePipeline(reason = "start_monitoring_connect_event")
             }
             ACTION_REFRESH_NOTIFICATION -> refreshActiveNotification()
             ACTION_REFRESH_WIDGET -> BatteryWidgetProvider.updateAll(this, latestConnectedSnapshot())
             ACTION_BOOT_RESTORE_MONITORING -> {
-                ensureForegroundModeWithCurrentNotification()
+                val requireForeground = intent.getBooleanExtra(EXTRA_REQUIRE_FOREGROUND, true)
+                if (requireForeground) {
+                    ensureForegroundModeWithCurrentNotification()
+                }
                 ensureObservePipelineRunning()
                 restartObservePipeline(reason = "boot_restore_or_user_unlock")
             }
@@ -673,6 +679,7 @@ class BluetoothBatteryService : Service() {
         const val ACTION_REFRESH_NOTIFICATION = "com.laker.btbudsbattery.action.REFRESH_NOTIFICATION"
         const val ACTION_REFRESH_WIDGET = "com.laker.btbudsbattery.action.REFRESH_WIDGET"
         const val ACTION_BOOT_RESTORE_MONITORING = "com.laker.btbudsbattery.action.BOOT_RESTORE_MONITORING"
+        const val EXTRA_REQUIRE_FOREGROUND = "com.laker.btbudsbattery.extra.REQUIRE_FOREGROUND"
     }
 }
 

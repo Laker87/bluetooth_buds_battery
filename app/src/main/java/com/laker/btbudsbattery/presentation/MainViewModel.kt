@@ -2,7 +2,6 @@
 
 import android.content.Context
 import android.content.Intent
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.laker.btbudsbattery.core.AppLanguage
@@ -93,8 +92,9 @@ class MainViewModel(
         if (enabled) {
             val serviceIntent = Intent(context, BluetoothBatteryService::class.java).apply {
                 action = BluetoothBatteryService.ACTION_START_MONITORING
+                putExtra(BluetoothBatteryService.EXTRA_REQUIRE_FOREGROUND, false)
             }
-            ContextCompat.startForegroundService(context, serviceIntent)
+            context.startService(serviceIntent)
         } else {
             val stopIntent = Intent(context, BluetoothBatteryService::class.java).apply {
                 action = BluetoothBatteryService.ACTION_STOP_MONITORING
@@ -106,7 +106,8 @@ class MainViewModel(
     fun ensureMonitoringRunning(context: Context) {
         if (!appPreferences.monitoringEnabled) return
         val serviceIntent = Intent(context, BluetoothBatteryService::class.java).apply {
-            action = BluetoothBatteryService.ACTION_BOOT_RESTORE_MONITORING
+            action = BluetoothBatteryService.ACTION_START_MONITORING
+            putExtra(BluetoothBatteryService.EXTRA_REQUIRE_FOREGROUND, false)
         }
         context.startService(serviceIntent)
     }

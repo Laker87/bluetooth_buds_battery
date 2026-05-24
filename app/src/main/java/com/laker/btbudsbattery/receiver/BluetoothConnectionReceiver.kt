@@ -41,6 +41,7 @@ class BluetoothConnectionReceiver : BroadcastReceiver() {
 
         val serviceIntent = Intent(context, BluetoothBatteryService::class.java).apply {
             this.action = action
+            putExtra(BluetoothBatteryService.EXTRA_REQUIRE_FOREGROUND, true)
         }
         runCatching {
             ContextCompat.startForegroundService(context, serviceIntent)

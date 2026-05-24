@@ -20,6 +20,7 @@ class BootCompletedReceiver : BroadcastReceiver() {
 
         val startIntent = Intent(context, BluetoothBatteryService::class.java).apply {
             action = BluetoothBatteryService.ACTION_BOOT_RESTORE_MONITORING
+            putExtra(BluetoothBatteryService.EXTRA_REQUIRE_FOREGROUND, true)
         }
         runCatching {
             ContextCompat.startForegroundService(context, startIntent)
