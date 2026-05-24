@@ -463,8 +463,8 @@ private fun dashboardBackgroundBrush(): Brush {
     return if (isLightTheme) {
         Brush.verticalGradient(
             colors = listOf(
-                Color(0xFFF4F7FC),
-                Color(0xFFEAF0F8),
+                Color(0xFFE6EAF3),
+                Color(0xFFD9E1EE),
             ),
         )
     } else {
