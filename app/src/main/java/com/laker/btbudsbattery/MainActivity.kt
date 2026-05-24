@@ -12,6 +12,8 @@ import androidx.compose.animation.animateContentSize
 import androidx.activity.compose.setContent
 import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -26,8 +28,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,15 +42,18 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -57,9 +64,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -341,6 +348,7 @@ private fun BluetoothBatteryApp(
     }
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = {
@@ -378,9 +386,9 @@ private fun BluetoothBatteryApp(
                         }
                     }
                 },
-                colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
-                    containerColor = appTopBarContainerColor(),
-                    scrolledContainerColor = appTopBarContainerColor(),
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = dashboardTopBarColor(),
+                    scrolledContainerColor = dashboardTopBarColor(),
                     titleContentColor = MaterialTheme.colorScheme.onSurface,
                     actionIconContentColor = MaterialTheme.colorScheme.onSurface,
                     navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
@@ -389,58 +397,118 @@ private fun BluetoothBatteryApp(
         },
     ) { padding ->
         val settingsScrollState = rememberScrollState()
-        val contentModifier = remember(isSettingsOpen, settingsScrollState, padding) {
-            if (isSettingsOpen) {
-                Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(16.dp)
-                    .verticalScroll(settingsScrollState)
-            } else {
-                Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(16.dp)
-            }
-        }
-        Column(
-            modifier = contentModifier,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(dashboardBackgroundBrush())
+                .padding(padding),
         ) {
-            if (isSettingsOpen) {
-                PermissionsCard(
-                    showRationale = showPermissionsRationale,
-                    permissionItems = permissionItems,
-                    onRequestPermissions = onRequestPermissions,
-                    onRequestSinglePermission = onRequestSinglePermission,
-                )
+            val contentModifier = remember(isSettingsOpen, settingsScrollState) {
+                if (isSettingsOpen) {
+                    Modifier
+                        .fillMaxSize()
+                        .padding(16.dp)
+                        .verticalScroll(settingsScrollState)
+                } else {
+                    Modifier
+                        .fillMaxSize()
+                        .padding(16.dp)
+                }
+            }
+            Column(
+                modifier = contentModifier,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                if (isSettingsOpen) {
+                    PermissionsCard(
+                        showRationale = showPermissionsRationale,
+                        permissionItems = permissionItems,
+                        onRequestPermissions = onRequestPermissions,
+                        onRequestSinglePermission = onRequestSinglePermission,
+                    )
 
-                SettingSwitchCard(
-                    title = stringResource(R.string.monitoring_enabled),
-                    checked = uiState.monitoringEnabled,
-                    enabled = hasAllPermissions || !uiState.monitoringEnabled,
-                    onCheckedChange = onMonitoringChanged,
-                )
+                    SettingSwitchCard(
+                        title = stringResource(R.string.monitoring_enabled),
+                        checked = uiState.monitoringEnabled,
+                        enabled = hasAllPermissions || !uiState.monitoringEnabled,
+                        onCheckedChange = onMonitoringChanged,
+                    )
 
-                AppearanceAndLanguageCard(
-                    selectedTheme = uiState.appTheme,
-                    selectedLanguage = uiState.appLanguage,
-                    selectedAccentColor = uiState.appAccentColor,
-                    onThemeChanged = onThemeChanged,
-                    onLanguageChanged = onLanguageChanged,
-                    onAccentColorChanged = onAccentColorChanged,
-                )
-            } else {
-                StatusCard(
-                    snapshot = uiState.lastSnapshot,
-                    monitoringEnabled = uiState.monitoringEnabled,
-                )
-                HeadphoneHistoryCard(
-                    history = uiState.headphoneHistory,
-                )
+                    AppearanceAndLanguageCard(
+                        selectedTheme = uiState.appTheme,
+                        selectedLanguage = uiState.appLanguage,
+                        selectedAccentColor = uiState.appAccentColor,
+                        onThemeChanged = onThemeChanged,
+                        onLanguageChanged = onLanguageChanged,
+                        onAccentColorChanged = onAccentColorChanged,
+                    )
+                } else {
+                    StatusCard(
+                        snapshot = uiState.lastSnapshot,
+                        monitoringEnabled = uiState.monitoringEnabled,
+                    )
+                    HeadphoneHistoryCard(
+                        history = uiState.headphoneHistory,
+                    )
+                }
             }
         }
     }
+}
+}
+
+@Composable
+private fun dashboardBackgroundBrush(): Brush {
+    val isLightTheme = MaterialTheme.colorScheme.background.luminance() > 0.5f
+    return if (isLightTheme) {
+        Brush.verticalGradient(
+            colors = listOf(
+                Color(0xFFF4F7FC),
+                Color(0xFFEAF0F8),
+            ),
+        )
+    } else {
+        Brush.verticalGradient(
+            colors = listOf(
+                Color(0xFF0C1119),
+                Color(0xFF121826),
+            ),
+        )
+    }
+}
+
+@Composable
+private fun dashboardCardContainerColor(): Color {
+    val isLightTheme = MaterialTheme.colorScheme.background.luminance() > 0.5f
+    return if (isLightTheme) Color(0xFFF8FAFD) else Color(0xFF1A1F2B)
+}
+
+@Composable
+private fun dashboardCardBorderColor(): Color {
+    val isLightTheme = MaterialTheme.colorScheme.background.luminance() > 0.5f
+    return if (isLightTheme) Color(0xFFD7DFEC) else Color(0xFF2B3242)
+}
+
+@Composable
+private fun dashboardTopBarColor(): Color = dashboardCardContainerColor()
+
+@Composable
+private fun DashboardCard(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = dashboardCardContainerColor(),
+            contentColor = MaterialTheme.colorScheme.onSurface,
+        ),
+        border = BorderStroke(1.dp, dashboardCardBorderColor()),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    )
+    {
+        content()
     }
 }
 
@@ -467,7 +535,7 @@ private fun InitialSetupScreen(
             .padding(16.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Card(modifier = Modifier.fillMaxWidth()) {
+        DashboardCard(modifier = Modifier.fillMaxWidth()) {
             Column(
                 modifier = Modifier.padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -540,6 +608,12 @@ private fun InitialSetupScreen(
                             onRequestPermissions()
                         }
                     },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
                 ) {
                     Text(
                         text = if (hasAllPermissions) {
@@ -556,6 +630,12 @@ private fun InitialSetupScreen(
                 if (isSystemBlocked) {
                     Button(
                         onClick = onOpenAppSettings,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = MaterialTheme.colorScheme.onSurface,
+                        ),
                     ) {
                         Text(text = stringResource(R.string.open_app_settings))
                     }
@@ -576,7 +656,7 @@ private fun PermissionsCard(
     val grantedCount = permissionItems.count { it.granted }
     val totalCount = permissionItems.size
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    DashboardCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -637,7 +717,10 @@ private fun PermissionsCard(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End,
                     ) {
-                        Button(onClick = { onRequestSinglePermission(item.permission) }) {
+                        Button(
+                            onClick = { onRequestSinglePermission(item.permission) },
+                            shape = RoundedCornerShape(10.dp),
+                        ) {
                             Text(text = stringResource(R.string.grant_permission_short))
                         }
                     }
@@ -648,7 +731,10 @@ private fun PermissionsCard(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                 ) {
-                    Button(onClick = onRequestPermissions) {
+                    Button(
+                        onClick = onRequestPermissions,
+                        shape = RoundedCornerShape(10.dp),
+                    ) {
                         Text(text = stringResource(R.string.grant_permissions))
                     }
                 }
@@ -666,7 +752,7 @@ private fun AppearanceAndLanguageCard(
     onLanguageChanged: (AppLanguage) -> Unit,
     onAccentColorChanged: (AppAccentColor) -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    DashboardCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -795,10 +881,6 @@ private fun BTBatteryTheme(
     appAccentColor: AppAccentColor,
     content: @Composable () -> Unit,
 ) {
-    val baseScheme = when (appTheme) {
-        AppTheme.DARK -> darkColorScheme()
-        AppTheme.LIGHT -> lightColorScheme()
-    }
     val accent = when (appAccentColor) {
         AppAccentColor.BLUE -> Color(0xFF3B82F6)
         AppAccentColor.GREEN -> Color(0xFF22C55E)
@@ -811,11 +893,35 @@ private fun BTBatteryTheme(
         AppAccentColor.INDIGO -> Color(0xFF6366F1)
         AppAccentColor.AMBER -> Color(0xFFF59E0B)
     }
-    val colorScheme = baseScheme.copy(
-        primary = accent,
-        secondary = accent,
-        tertiary = accent,
-    )
+    val colorScheme = when (appTheme) {
+        AppTheme.DARK -> darkColorScheme(
+            primary = accent,
+            onPrimary = Color.White,
+            secondary = accent,
+            tertiary = accent,
+            background = Color(0xFF0B1118),
+            onBackground = Color(0xFFE7ECF4),
+            surface = Color(0xFF131A27),
+            onSurface = Color(0xFFE7ECF4),
+            surfaceVariant = Color(0xFF3A4254),
+            onSurfaceVariant = Color(0xFFADB7C8),
+            outline = Color(0xFF2D3547),
+        )
+
+        AppTheme.LIGHT -> lightColorScheme(
+            primary = accent,
+            onPrimary = Color.White,
+            secondary = accent,
+            tertiary = accent,
+            background = Color(0xFFF1F5FA),
+            onBackground = Color(0xFF111827),
+            surface = Color(0xFFF8FAFD),
+            onSurface = Color(0xFF111827),
+            surfaceVariant = Color(0xFFD8E0EB),
+            onSurfaceVariant = Color(0xFF556074),
+            outline = Color(0xFFC9D3E1),
+        )
+    }
     MaterialTheme(
         colorScheme = colorScheme,
         content = content,
@@ -836,6 +942,10 @@ private fun SelectionDropdownRow(
     options: List<DropdownOption>,
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
+    val dropdownContainer = dashboardCardContainerColor()
+    val dropdownBorder = dashboardCardBorderColor()
+    val dropdownText = MaterialTheme.colorScheme.onSurface
+    val dropdownHint = MaterialTheme.colorScheme.onSurfaceVariant
 
     ExposedDropdownMenuBox(
         expanded = expanded,
@@ -847,6 +957,16 @@ private fun SelectionDropdownRow(
             readOnly = true,
             label = { Text(title) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = dropdownText,
+                unfocusedTextColor = dropdownText,
+                focusedLabelColor = dropdownHint,
+                unfocusedLabelColor = dropdownHint,
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = dropdownBorder,
+                focusedContainerColor = dropdownContainer,
+                unfocusedContainerColor = dropdownContainer,
+            ),
             modifier = Modifier
                 .menuAnchor(
                     type = MenuAnchorType.PrimaryNotEditable,
@@ -857,6 +977,10 @@ private fun SelectionDropdownRow(
         ExposedDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
+            containerColor = dropdownContainer,
+            border = BorderStroke(1.dp, dropdownBorder),
+            shadowElevation = 6.dp,
+            tonalElevation = 0.dp,
         ) {
             options.forEach { option ->
                 DropdownMenuItem(
@@ -868,6 +992,10 @@ private fun SelectionDropdownRow(
                         }
                     },
                     enabled = option.enabled,
+                    colors = MenuDefaults.itemColors(
+                        textColor = dropdownText,
+                        disabledTextColor = dropdownHint.copy(alpha = 0.5f),
+                    ),
                 )
             }
         }
@@ -884,7 +1012,7 @@ private fun SettingSwitchCard(
     val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val background = MaterialTheme.colorScheme.background
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    DashboardCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -922,7 +1050,7 @@ private fun StatusCard(
     monitoringEnabled: Boolean,
 ) {
     if (!monitoringEnabled) {
-        Card(modifier = Modifier.fillMaxWidth()) {
+        DashboardCard(modifier = Modifier.fillMaxWidth()) {
             Column(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -941,7 +1069,7 @@ private fun StatusCard(
     }
 
     val isConnected = snapshot?.isConnected == true
-    Card(modifier = Modifier.fillMaxWidth()) {
+    DashboardCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -977,7 +1105,7 @@ private fun HeadphoneHistoryCard(
     history: List<HeadphoneHistoryEntry>,
 ) {
     if (history.isEmpty()) return
-    Card(modifier = Modifier.fillMaxWidth()) {
+    DashboardCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -1166,17 +1294,6 @@ private fun formatHistoryDate(millis: Long): String {
 private fun batteryTrackColor(): Color {
     val scheme = MaterialTheme.colorScheme
     val isLightTheme = scheme.background.luminance() > 0.5f
-    return if (isLightTheme) Color(0xFF8C93A2) else scheme.surfaceVariant
-}
-
-@Composable
-private fun appTopBarContainerColor(): Color {
-    val background = MaterialTheme.colorScheme.background
-    val isLightTheme = background.luminance() > 0.5f
-    return if (isLightTheme) {
-        lerp(background, Color.Black, 0.08f)
-    } else {
-        lerp(background, Color.White, 0.08f)
-    }
+    return if (isLightTheme) Color(0xFFC7D0DE) else Color(0xFF3D4455)
 }
 
