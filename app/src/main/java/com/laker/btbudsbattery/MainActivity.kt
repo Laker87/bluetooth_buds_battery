@@ -308,6 +308,12 @@ private data class PermissionUiItem(
     val requestedCount: Int,
 )
 
+private enum class SetupStage {
+    LANGUAGE,
+    THEME,
+    PERMISSIONS,
+}
+
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 private fun BluetoothBatteryApp(
@@ -332,11 +338,15 @@ private fun BluetoothBatteryApp(
     ) {
     if (!initialSetupCompleted) {
         InitialSetupScreen(
+            selectedTheme = uiState.appTheme,
+            selectedLanguage = uiState.appLanguage,
             hasAllPermissions = hasAllPermissions,
             permissionItems = permissionItems,
             onRequestPermissions = onRequestPermissions,
             onRequestSinglePermission = onRequestSinglePermission,
             onOpenAppSettings = onOpenAppSettings,
+            onThemeChanged = onThemeChanged,
+            onLanguageChanged = onLanguageChanged,
             onContinue = onCompleteInitialSetup,
         )
         return@BTBatteryTheme
@@ -514,13 +524,18 @@ private fun DashboardCard(
 
 @Composable
 private fun InitialSetupScreen(
+    selectedTheme: AppTheme,
+    selectedLanguage: AppLanguage,
     hasAllPermissions: Boolean,
     permissionItems: List<PermissionUiItem>,
     onRequestPermissions: () -> Unit,
     onRequestSinglePermission: (String) -> Unit,
     onOpenAppSettings: () -> Unit,
+    onThemeChanged: (AppTheme) -> Unit,
+    onLanguageChanged: (AppLanguage) -> Unit,
     onContinue: () -> Unit,
 ) {
+    var stage by rememberSaveable { mutableStateOf(SetupStage.LANGUAGE) }
     val totalPermissions = permissionItems.size
     val grantedCount = permissionItems.count { it.granted }
     val currentItem = permissionItems.firstOrNull { !it.granted }
@@ -544,100 +559,203 @@ private fun InitialSetupScreen(
                     text = stringResource(R.string.initial_setup_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                )
-                if (currentItem != null) {
-                    Text(
-                        text = stringResource(
-                            R.string.initial_setup_step_counter,
-                            currentStep,
-                            totalPermissions,
-                        ),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    Text(
-                        text = stringResource(currentItem.labelRes),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        text = if (isSystemBlocked) {
-                            stringResource(R.string.permission_system_blocked_message)
-                        } else if (currentItem.requestedCount > 0) {
-                            stringResource(R.string.initial_setup_denied_message)
-                        } else {
-                            stringResource(R.string.initial_setup_step_message)
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                } else {
-                    Text(
-                        text = stringResource(R.string.initial_setup_all_permissions_granted),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                }
-
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    permissionItems.forEach { item ->
-                        val statusText = if (item.granted) {
-                            stringResource(R.string.initial_setup_status_granted)
-                        } else {
-                            stringResource(R.string.initial_setup_status_pending)
-                        }
-                        Text(
-                            text = "${stringResource(item.labelRes)}: $statusText",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (item.granted) {
-                                Color(0xFF22C55E)
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                        )
-                    }
-                }
-
-                Button(
-                    onClick = {
-                        if (hasAllPermissions) {
-                            onContinue()
-                        } else if (currentItem != null) {
-                            onRequestSinglePermission(currentItem.permission)
-                        } else {
-                            onRequestPermissions()
-                        }
-                    },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                    ),
-                ) {
-                    Text(
-                        text = if (hasAllPermissions) {
-                            stringResource(R.string.initial_setup_continue)
-                        } else if (isSystemBlocked) {
-                            stringResource(R.string.initial_setup_retry_permission)
-                        } else if ((currentItem?.requestedCount ?: 0) > 0) {
-                            stringResource(R.string.initial_setup_retry_permission)
+                    textAlign = TextAlign.Center,
+                )
+
+                when (stage) {
+                    SetupStage.LANGUAGE -> {
+                        Text(
+                            text = "1 / 3",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_language),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        SelectionDropdownRow(
+                            title = stringResource(R.string.settings_language),
+                            value = when (selectedLanguage) {
+                                AppLanguage.ENGLISH -> "English"
+                                AppLanguage.RUSSIAN -> "Русский"
+                            },
+                            options = listOf(
+                                DropdownOption(
+                                    label = "English",
+                                    enabled = true,
+                                    onClick = { onLanguageChanged(AppLanguage.ENGLISH) },
+                                ),
+                                DropdownOption(
+                                    label = "Русский",
+                                    enabled = true,
+                                    onClick = { onLanguageChanged(AppLanguage.RUSSIAN) },
+                                ),
+                            ),
+                        )
+                        Button(
+                            onClick = { stage = SetupStage.THEME },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
+                            ),
+                        ) {
+                            Text(text = stringResource(R.string.initial_setup_continue))
+                        }
+                    }
+
+                    SetupStage.THEME -> {
+                        Text(
+                            text = "2 / 3",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_theme),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        SelectionDropdownRow(
+                            title = stringResource(R.string.settings_theme),
+                            value = when (selectedTheme) {
+                                AppTheme.LIGHT -> stringResource(R.string.theme_light)
+                                AppTheme.DARK -> stringResource(R.string.theme_dark)
+                            },
+                            options = listOf(
+                                DropdownOption(
+                                    label = stringResource(R.string.theme_light),
+                                    enabled = true,
+                                    onClick = { onThemeChanged(AppTheme.LIGHT) },
+                                ),
+                                DropdownOption(
+                                    label = stringResource(R.string.theme_dark),
+                                    enabled = true,
+                                    onClick = { onThemeChanged(AppTheme.DARK) },
+                                ),
+                            ),
+                        )
+                        Button(
+                            onClick = { stage = SetupStage.PERMISSIONS },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
+                            ),
+                        ) {
+                            Text(text = stringResource(R.string.initial_setup_continue))
+                        }
+                    }
+
+                    SetupStage.PERMISSIONS -> {
+                        Text(
+                            text = "3 / 3",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Text(
+                            text = stringResource(R.string.permissions_status_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        if (currentItem != null) {
+                            Text(
+                                text = stringResource(
+                                    R.string.initial_setup_step_counter,
+                                    currentStep,
+                                    totalPermissions,
+                                ),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                            Text(
+                                text = stringResource(currentItem.labelRes),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Text(
+                                text = if (isSystemBlocked) {
+                                    stringResource(R.string.permission_system_blocked_message)
+                                } else if (currentItem.requestedCount > 0) {
+                                    stringResource(R.string.initial_setup_denied_message)
+                                } else {
+                                    stringResource(R.string.initial_setup_step_message)
+                                },
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
                         } else {
-                            stringResource(R.string.initial_setup_grant_current_permission)
-                        },
-                    )
-                }
-                if (isSystemBlocked) {
-                    Button(
-                        onClick = onOpenAppSettings,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            contentColor = MaterialTheme.colorScheme.onSurface,
-                        ),
-                    ) {
-                        Text(text = stringResource(R.string.open_app_settings))
+                            Text(
+                                text = stringResource(R.string.initial_setup_all_permissions_granted),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            permissionItems.forEach { item ->
+                                val statusText = if (item.granted) {
+                                    stringResource(R.string.initial_setup_status_granted)
+                                } else {
+                                    stringResource(R.string.initial_setup_status_pending)
+                                }
+                                Text(
+                                    text = "${stringResource(item.labelRes)}: $statusText",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (item.granted) {
+                                        Color(0xFF22C55E)
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                )
+                            }
+                        }
+
+                        Button(
+                            onClick = {
+                                if (hasAllPermissions) {
+                                    onContinue()
+                                } else if (currentItem != null) {
+                                    onRequestSinglePermission(currentItem.permission)
+                                } else {
+                                    onRequestPermissions()
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
+                            ),
+                        ) {
+                            Text(
+                                text = if (hasAllPermissions) {
+                                    stringResource(R.string.initial_setup_continue)
+                                } else if (isSystemBlocked) {
+                                    stringResource(R.string.initial_setup_retry_permission)
+                                } else if ((currentItem?.requestedCount ?: 0) > 0) {
+                                    stringResource(R.string.initial_setup_retry_permission)
+                                } else {
+                                    stringResource(R.string.initial_setup_grant_current_permission)
+                                },
+                            )
+                        }
+                        if (isSystemBlocked) {
+                            Button(
+                                onClick = onOpenAppSettings,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    contentColor = MaterialTheme.colorScheme.onSurface,
+                                ),
+                            ) {
+                                Text(text = stringResource(R.string.open_app_settings))
+                            }
+                        }
                     }
                 }
             }
