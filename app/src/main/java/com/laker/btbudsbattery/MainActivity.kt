@@ -474,15 +474,15 @@ private fun dashboardBackgroundBrush(): Brush {
     return if (isLightTheme) {
         Brush.verticalGradient(
             colors = listOf(
-                Color(0xFFE6EAF3),
-                Color(0xFFD9E1EE),
+                Color(0xFFF4F4F9),
+                Color(0xFFF4F4F9),
             ),
         )
     } else {
         Brush.verticalGradient(
             colors = listOf(
-                Color(0xFF0C1119),
-                Color(0xFF121826),
+                Color(0xFF0E0E10),
+                Color(0xFF0E0E10),
             ),
         )
     }
@@ -491,7 +491,7 @@ private fun dashboardBackgroundBrush(): Brush {
 @Composable
 private fun dashboardCardContainerColor(): Color {
     val isLightTheme = MaterialTheme.colorScheme.background.luminance() > 0.5f
-    return if (isLightTheme) Color(0xFFF8FAFD) else Color(0xFF1A1F2B)
+    return if (isLightTheme) Color(0xFFFFFFFF) else Color(0xFF1B1B1D)
 }
 
 @Composable
@@ -1003,13 +1003,13 @@ private fun BTBatteryTheme(
             onPrimary = Color.White,
             secondary = accent,
             tertiary = accent,
-            background = Color(0xFF0B1118),
-            onBackground = Color(0xFFE7ECF4),
-            surface = Color(0xFF131A27),
-            onSurface = Color(0xFFE7ECF4),
-            surfaceVariant = Color(0xFF3A4254),
-            onSurfaceVariant = Color(0xFFADB7C8),
-            outline = Color(0xFF2D3547),
+            background = Color(0xFF0E0E10),
+            onBackground = Color(0xFFEDEFF5),
+            surface = Color(0xFF1B1B1D),
+            onSurface = Color(0xFFEDEFF5),
+            surfaceVariant = Color(0xFF3A3A3F),
+            onSurfaceVariant = Color(0xFFB8B8C3),
+            outline = Color(0xFF2F2F35),
         )
 
         AppTheme.LIGHT -> lightColorScheme(
@@ -1017,13 +1017,13 @@ private fun BTBatteryTheme(
             onPrimary = Color.White,
             secondary = accent,
             tertiary = accent,
-            background = Color(0xFFF1F5FA),
-            onBackground = Color(0xFF111827),
-            surface = Color(0xFFF8FAFD),
+            background = Color(0xFFF4F4F9),
+            onBackground = Color(0xFF17171B),
+            surface = Color(0xFFFFFFFF),
             onSurface = Color(0xFF111827),
-            surfaceVariant = Color(0xFFD8E0EB),
-            onSurfaceVariant = Color(0xFF556074),
-            outline = Color(0xFFC9D3E1),
+            surfaceVariant = Color(0xFFE4E5EE),
+            onSurfaceVariant = Color(0xFF5D5E69),
+            outline = Color(0xFFD5D6E0),
         )
     }
     MaterialTheme(
