@@ -20,6 +20,7 @@ import androidx.core.content.ContextCompat
 import com.laker.btbudsbattery.MainActivity
 import com.laker.btbudsbattery.R
 import com.laker.btbudsbattery.core.AppAccentColor
+import com.laker.btbudsbattery.core.AppTheme
 import com.laker.btbudsbattery.core.AppPreferences
 import com.laker.btbudsbattery.core.FastPairEventBus
 import com.laker.btbudsbattery.core.RuntimePermissionGate
@@ -277,7 +278,8 @@ class BluetoothBatteryService : Service() {
         val density = resources.displayMetrics.density
         val sizePx = (sizeDp * density).toInt().coerceAtLeast(1)
         val progressColor = resolveBatteryRingProgressColor(level)
-        val cacheKey = "$sizePx:${level ?: "null"}:$progressColor"
+        val themeKey = appPreferences.appTheme.name
+        val cacheKey = "$sizePx:${level ?: "null"}:$progressColor:$themeKey"
         synchronized(stateLock) {
             ringBitmapCache[cacheKey]?.let { return it }
         }
@@ -299,12 +301,19 @@ class BluetoothBatteryService : Service() {
             this.strokeWidth = strokeWidth
             color = ContextCompat.getColor(this@BluetoothBatteryService, R.color.fast_pair_ring_track)
         }
+        val innerFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+            color = resolveRingInnerFillColor()
+        }
         val progressPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.STROKE
             strokeCap = Paint.Cap.ROUND
             this.strokeWidth = strokeWidth
             color = progressColor
         }
+        val center = sizePx / 2f
+        val innerRadius = (bounds.width() / 2f - strokeWidth).coerceAtLeast(0f)
+        canvas.drawCircle(center, center, innerRadius, innerFillPaint)
 
         if (clamped >= 100) {
             canvas.drawArc(bounds, -90f, 359.9f, false, progressPaint)
@@ -384,6 +393,13 @@ class BluetoothBatteryService : Service() {
             AppAccentColor.CYAN -> 0xFF06B6D4.toInt()
             AppAccentColor.INDIGO -> 0xFF6366F1.toInt()
             AppAccentColor.AMBER -> 0xFFF59E0B.toInt()
+        }
+    }
+
+    private fun resolveRingInnerFillColor(): Int {
+        return when (appPreferences.appTheme) {
+            AppTheme.DARK -> 0x0DFFFFFF
+            AppTheme.LIGHT -> 0x0D000000
         }
     }
 

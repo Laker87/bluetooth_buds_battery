@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Button
@@ -1353,6 +1354,14 @@ private fun BatteryCircleItem(
             modifier = Modifier.size(76.dp),
             contentAlignment = Alignment.Center,
         ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .background(
+                        color = batteryInnerFillColor(),
+                        shape = CircleShape,
+                    ),
+            )
             CircularProgressIndicator(
                 progress = { ((level ?: 0).coerceIn(0, 100)) / 100f },
                 modifier = Modifier.size(76.dp),
@@ -1384,6 +1393,18 @@ private fun batteryProgressColor(level: Int?): Color {
         safeLevel <= 10 -> Color(0xFFEF4444)
         safeLevel <= 30 -> Color(0xFFF59E0B)
         else -> MaterialTheme.colorScheme.primary
+    }
+}
+
+@Composable
+private fun batteryInnerFillColor(): Color {
+    val isLightTheme = MaterialTheme.colorScheme.background.luminance() > 0.5f
+    return if (isLightTheme) {
+        // 95% transparent inner fill for light theme.
+        Color.Black.copy(alpha = 0.05f)
+    } else {
+        // 95% transparent inner fill for dark theme.
+        Color.White.copy(alpha = 0.05f)
     }
 }
 
