@@ -304,19 +304,27 @@ class BluetoothBatteryRepositoryImpl(
     private fun parseAppleContinuityScan(result: ScanResult): BluetoothBatterySnapshot? {
         val data = result.scanRecord?.getManufacturerSpecificData(AppleContinuityBatteryParser.APPLE_COMPANY_ID)
         val parsed = AppleContinuityBatteryParser.parse(data) ?: return null
-        val matched = findBestKnownDeviceFor(parsed.modelName)
-        val address = matched?.address ?: "ble:${result.device.address}"
+        val matched = findBestConnectedDeviceFor(parsed.modelName)
+        if (matched == null) {
+            Log.d(
+                LOG_TAG,
+                "source=apple_continuity_skip reason=no_connected_match model=${parsed.modelName} " +
+                    "rssi=${result.rssi} addr=${result.device.address}",
+            )
+            return null
+        }
+        val address = matched.address
         val previous = cache[address]
         val snapshot = BluetoothBatterySnapshot(
-            deviceAddress = address,
-            deviceName = matched?.let { runCatching { it.alias ?: it.name }.getOrNull() }
+            deviceAddress = matched.address,
+            deviceName = runCatching { matched.alias ?: matched.name }.getOrNull()
                 ?: previous?.deviceName
                 ?: parsed.modelName,
             batteryLevel = mergeCoarseContinuityLevel(parsed.batteryLevel, previous?.batteryLevel),
             leftLevel = mergeCoarseContinuityLevel(parsed.leftLevel, previous?.leftLevel),
             rightLevel = mergeCoarseContinuityLevel(parsed.rightLevel, previous?.rightLevel),
             caseLevel = mergeCoarseContinuityLevel(parsed.caseLevel, previous?.caseLevel),
-            isConnected = matched?.let { isDeviceConnected(it) } ?: (previous?.isConnected ?: true),
+            isConnected = true,
         )
         cache[address] = snapshot
         Log.d(
@@ -345,14 +353,22 @@ class BluetoothBatteryRepositoryImpl(
             .orEmpty()
         val matchedByName = normalizedName
             .takeIf { it.isNotBlank() }
-            ?.let(::findBestKnownDeviceFor)
+            ?.let(::findBestConnectedDeviceFor)
         val matched = matchedByName ?: findBestConnectedClassicDevice()
+        if (matched == null) {
+            Log.d(
+                LOG_TAG,
+                "source=tws_adv_skip reason=no_connected_match parser=${parsed.parserId} " +
+                    "addr=${result.device.address} advName=${advertisedName ?: "null"} payload=${parsed.rawPayloadHex}",
+            )
+            return null
+        }
 
-        val address = matched?.address ?: "blefe2c:${result.device.address}"
+        val address = matched.address
         val previous = cache[address]
         val snapshot = BluetoothBatterySnapshot(
-            deviceAddress = address,
-            deviceName = matched?.let { runCatching { it.alias ?: it.name }.getOrNull() }
+            deviceAddress = matched.address,
+            deviceName = runCatching { matched.alias ?: matched.name }.getOrNull()
                 ?: previous?.deviceName
                 ?: advertisedName
                 ?: "Fast Pair device",
@@ -363,7 +379,7 @@ class BluetoothBatteryRepositoryImpl(
             leftLevel = split.left,
             rightLevel = split.right,
             caseLevel = split.caseLevel,
-            isConnected = matched?.let { isDeviceConnected(it) } ?: (previous?.isConnected ?: true),
+            isConnected = true,
         )
         cache[address] = snapshot
         Log.d(
@@ -648,6 +664,29 @@ class BluetoothBatteryRepositoryImpl(
                 val name = runCatching { device.alias ?: device.name }.getOrNull().orEmpty()
                 name.normalizeDeviceName().contains(normalizedModel) || normalizedModel.contains(name.normalizeDeviceName())
             }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun findBestConnectedDeviceFor(modelName: String): BluetoothDevice? {
+        val normalizedModel = modelName.normalizeDeviceName()
+        if (normalizedModel.isBlank()) return null
+
+        val connectedCachedMatch = synchronized(cache) {
+            cache.values.firstOrNull { snapshot ->
+                snapshot.isConnected &&
+                    !snapshot.deviceAddress.startsWith("ble:") &&
+                    !snapshot.deviceAddress.startsWith("blefe2c:") &&
+                    snapshot.deviceName.normalizeDeviceName() == normalizedModel
+            }
+        }
+        connectedCachedMatch?.let { snapshot ->
+            runCatching { bluetoothAdapter?.getRemoteDevice(snapshot.deviceAddress) }.getOrNull()?.let { return it }
+        }
+
+        return bluetoothAdapter?.bondedDevices.orEmpty().firstOrNull { device ->
+            val name = runCatching { device.alias ?: device.name }.getOrNull().orEmpty()
+            name.normalizeDeviceName() == normalizedModel && isDeviceConnected(device)
+        }
     }
 
     @SuppressLint("MissingPermission")
