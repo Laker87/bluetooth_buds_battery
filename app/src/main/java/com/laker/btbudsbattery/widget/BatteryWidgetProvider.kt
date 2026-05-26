@@ -19,6 +19,7 @@ import com.laker.btbudsbattery.R
 import com.laker.btbudsbattery.core.AppAccentColor
 import com.laker.btbudsbattery.core.AppTheme
 import com.laker.btbudsbattery.core.AppPreferences
+import com.laker.btbudsbattery.core.BatteryRingProgress
 import com.laker.btbudsbattery.domain.model.BluetoothBatterySnapshot
 
 class BatteryWidgetProvider : AppWidgetProvider() {
@@ -202,12 +203,8 @@ class BatteryWidgetProvider : AppWidgetProvider() {
                 color = resolveBatteryRingProgressColor(context, level)
             }
 
-            if (clamped >= 100) {
-                canvas.drawArc(bounds, -90f, 359.9f, false, progressPaint)
-                return bitmap
-            }
             if (clamped <= 0) {
-                canvas.drawArc(bounds, -90f, 359.9f, false, trackPaint)
+                canvas.drawArc(bounds, -90f, BatteryRingProgress.FULL_SWEEP_DEGREES, false, trackPaint)
                 return bitmap
             }
 
@@ -217,29 +214,26 @@ class BatteryWidgetProvider : AppWidgetProvider() {
             } else {
                 0f
             }
-            val visualGapDeg = 6f
-            val effectiveGapDeg = visualGapDeg + (capCompensationDeg * 2f)
-            val totalGapDeg = effectiveGapDeg * 2f
-            val drawableSweep = (360f - totalGapDeg).coerceAtLeast(1f)
-            val progressRatio = clamped / 100f
-            val minSweep = 0.5f
-            val rawProgressSweep = drawableSweep * progressRatio
-            val progressSweep = rawProgressSweep.coerceIn(minSweep, drawableSweep - minSweep)
-            val trackSweep = (drawableSweep - progressSweep).coerceAtLeast(0f)
-            val start = -90f + (effectiveGapDeg / 2f)
-
-            if (progressSweep > 0f) {
-                canvas.drawArc(bounds, start, progressSweep, false, progressPaint)
-            }
-            if (trackSweep > 0f) {
+            val segments = BatteryRingProgress.segments(
+                level = clamped,
+                capCompensationDegrees = capCompensationDeg,
+            )
+            if (segments.trackSweepDegrees > 0f) {
                 canvas.drawArc(
                     bounds,
-                    start + progressSweep + effectiveGapDeg,
-                    trackSweep,
+                    segments.trackStartDegrees,
+                    segments.trackSweepDegrees,
                     false,
                     trackPaint,
                 )
             }
+            canvas.drawArc(
+                bounds,
+                -90f,
+                segments.progressSweepDegrees,
+                false,
+                progressPaint,
+            )
             return bitmap
         }
 

@@ -22,6 +22,7 @@ import com.laker.btbudsbattery.R
 import com.laker.btbudsbattery.core.AppAccentColor
 import com.laker.btbudsbattery.core.AppTheme
 import com.laker.btbudsbattery.core.AppPreferences
+import com.laker.btbudsbattery.core.BatteryRingProgress
 import com.laker.btbudsbattery.core.FastPairEventBus
 import com.laker.btbudsbattery.core.RuntimePermissionGate
 import com.laker.btbudsbattery.data.BluetoothBatteryRepositoryImpl
@@ -315,16 +316,8 @@ class BluetoothBatteryService : Service() {
         val innerRadius = (bounds.width() / 2f - strokeWidth).coerceAtLeast(0f)
         canvas.drawCircle(center, center, innerRadius, innerFillPaint)
 
-        if (clamped >= 100) {
-            canvas.drawArc(bounds, -90f, 359.9f, false, progressPaint)
-            synchronized(stateLock) {
-                ringBitmapCache[cacheKey] = bitmap
-            }
-            return bitmap
-        }
         if (clamped <= 0) {
-            // Empty state: draw a continuous track ring without any gaps.
-            canvas.drawArc(bounds, -90f, 359.9f, false, trackPaint)
+            canvas.drawArc(bounds, -90f, BatteryRingProgress.FULL_SWEEP_DEGREES, false, trackPaint)
             synchronized(stateLock) {
                 ringBitmapCache[cacheKey] = bitmap
             }
@@ -337,34 +330,26 @@ class BluetoothBatteryService : Service() {
         } else {
             0f
         }
-        // Desired visual gap between progress and track.
-        val visualGapDeg = 6f
-        // Round caps visually add length at both ends, compensate to preserve gap.
-        val effectiveGapDeg = visualGapDeg + (capCompensationDeg * 2f)
-        val totalGapDeg = effectiveGapDeg * 2f
-        val drawableSweep = (360f - totalGapDeg).coerceAtLeast(1f)
-        val progressRatio = clamped / 100f
-        val minSweep = 0.5f
-        val rawProgressSweep = drawableSweep * progressRatio
-        val progressSweep = when {
-            clamped >= 100 -> drawableSweep
-            else -> rawProgressSweep.coerceIn(minSweep, drawableSweep - minSweep)
-        }
-        val trackSweep = (drawableSweep - progressSweep).coerceAtLeast(0f)
-        val start = -90f + (effectiveGapDeg / 2f)
-
-        if (progressSweep > 0f) {
-            canvas.drawArc(bounds, start, progressSweep, false, progressPaint)
-        }
-        if (trackSweep > 0f) {
+        val segments = BatteryRingProgress.segments(
+            level = clamped,
+            capCompensationDegrees = capCompensationDeg,
+        )
+        if (segments.trackSweepDegrees > 0f) {
             canvas.drawArc(
                 bounds,
-                start + progressSweep + effectiveGapDeg,
-                trackSweep,
+                segments.trackStartDegrees,
+                segments.trackSweepDegrees,
                 false,
                 trackPaint,
             )
         }
+        canvas.drawArc(
+            bounds,
+            -90f,
+            segments.progressSweepDegrees,
+            false,
+            progressPaint,
+        )
 
         synchronized(stateLock) {
             ringBitmapCache[cacheKey] = bitmap
