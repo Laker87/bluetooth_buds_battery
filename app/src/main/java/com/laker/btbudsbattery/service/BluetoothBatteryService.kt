@@ -592,8 +592,7 @@ class BluetoothBatteryService : Service() {
         if (hasAnyLevel) return current
         if (existing == null) return null
 
-        val sameDevice = existing.deviceAddress == current.deviceAddress ||
-            existing.deviceName.normalizedDeviceName() == current.deviceName.normalizedDeviceName()
+        val sameDevice = existing.deviceAddress == current.deviceAddress
         if (!sameDevice) return existing
 
         return current.copy(
@@ -604,20 +603,14 @@ class BluetoothBatteryService : Service() {
         )
     }
 
-    private fun String.normalizedDeviceName(): String {
-        return lowercase().filter { it.isLetterOrDigit() }
-    }
-
     private fun BluetoothBatterySnapshot.isSameUserVisibleDevice(other: BluetoothBatterySnapshot): Boolean {
-        return deviceAddress == other.deviceAddress ||
-            deviceName.normalizedDeviceName() == other.deviceName.normalizedDeviceName()
+        return deviceAddress == other.deviceAddress
     }
 
     private fun findPreviousVisibleSnapshot(current: BluetoothBatterySnapshot): BluetoothBatterySnapshot? {
         synchronized(stateLock) {
             return lastDelivered.values.lastOrNull { snapshot ->
-                snapshot.deviceAddress == current.deviceAddress ||
-                    snapshot.deviceName.normalizedDeviceName() == current.deviceName.normalizedDeviceName()
+                snapshot.deviceAddress == current.deviceAddress
             }
         }
     }
@@ -627,8 +620,7 @@ class BluetoothBatteryService : Service() {
         current: BluetoothBatterySnapshot,
     ): BluetoothBatterySnapshot {
         if (previous == null) return current
-        val sameDevice = previous.deviceAddress == current.deviceAddress ||
-            previous.deviceName.normalizedDeviceName() == current.deviceName.normalizedDeviceName()
+        val sameDevice = previous.deviceAddress == current.deviceAddress
         if (!sameDevice) return current
         val isReconnect = current.isConnected && !previous.isConnected
         val keepSplitForFlicker = shouldKeepPreviousSplitForFlicker(previous, current)
@@ -650,14 +642,12 @@ class BluetoothBatteryService : Service() {
 
     private fun markDeviceFamilyDisconnected(disconnected: BluetoothBatterySnapshot): BluetoothBatterySnapshot {
         synchronized(stateLock) {
-            val normalizedName = disconnected.deviceName.normalizedDeviceName()
             val address = disconnected.deviceAddress
 
             val keys = lastDelivered.keys.toList()
             keys.forEach { key ->
                 val current = lastDelivered[key] ?: return@forEach
-                val sameFamily = current.deviceAddress == address ||
-                    current.deviceName.normalizedDeviceName() == normalizedName
+                val sameFamily = current.deviceAddress == address
                 if (!sameFamily || !current.isConnected) return@forEach
                 lastDelivered[key] = current.copy(
                     isConnected = false,

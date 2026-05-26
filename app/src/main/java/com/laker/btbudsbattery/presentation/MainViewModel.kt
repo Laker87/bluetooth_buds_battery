@@ -158,12 +158,7 @@ class MainViewModel(
     private fun BluetoothBatterySnapshot.isSameUserVisibleDevice(
         other: BluetoothBatterySnapshot,
     ): Boolean {
-        return deviceAddress == other.deviceAddress ||
-            deviceName.normalizedDeviceName() == other.deviceName.normalizedDeviceName()
-    }
-
-    private fun String.normalizedDeviceName(): String {
-        return lowercase().filter { it.isLetterOrDigit() }
+        return deviceAddress == other.deviceAddress
     }
 
     companion object {
