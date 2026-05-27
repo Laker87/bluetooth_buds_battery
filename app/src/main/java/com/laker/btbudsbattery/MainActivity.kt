@@ -13,6 +13,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
@@ -34,7 +35,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.DropdownMenuItem
@@ -65,8 +65,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
@@ -84,6 +88,7 @@ import com.laker.btbudsbattery.core.AppLanguage
 import com.laker.btbudsbattery.core.AppAccentColor
 import com.laker.btbudsbattery.core.AppPreferences
 import com.laker.btbudsbattery.core.AppTheme
+import com.laker.btbudsbattery.core.BatteryRingProgress
 import com.laker.btbudsbattery.core.HeadphoneHistoryEntry
 import com.laker.btbudsbattery.core.RuntimePermissionGate
 import com.laker.btbudsbattery.domain.model.BluetoothBatterySnapshot
@@ -1363,12 +1368,12 @@ private fun BatteryCircleItem(
                         shape = CircleShape,
                     ),
             )
-            CircularProgressIndicator(
-                progress = { ((level ?: 0).coerceIn(0, 100)) / 100f },
+            BatteryRing(
+                level = level,
                 modifier = Modifier.size(76.dp),
                 strokeWidth = 7.dp,
                 trackColor = batteryTrackColor(),
-                color = batteryProgressColor(level),
+                progressColor = batteryProgressColor(level),
             )
             Text(
                 text = level?.let { "$it%" } ?: "--",
@@ -1383,6 +1388,72 @@ private fun BatteryCircleItem(
             text = label,
             style = MaterialTheme.typography.labelLarge,
             textAlign = TextAlign.Center,
+        )
+    }
+}
+
+@Composable
+private fun BatteryRing(
+    level: Int?,
+    modifier: Modifier = Modifier,
+    strokeWidth: androidx.compose.ui.unit.Dp,
+    trackColor: Color,
+    progressColor: Color,
+) {
+    Canvas(modifier = modifier) {
+        val strokePx = strokeWidth.toPx()
+        val halfStroke = strokePx / 2f
+        val arcTopLeft = Offset(halfStroke, halfStroke)
+        val arcSize = Size(
+            width = size.width - strokePx,
+            height = size.height - strokePx,
+        )
+        val stroke = Stroke(width = strokePx, cap = StrokeCap.Round)
+        val clamped = (level ?: 0).coerceIn(0, 100)
+
+        if (clamped <= 0) {
+            drawArc(
+                color = trackColor,
+                startAngle = -90f,
+                sweepAngle = BatteryRingProgress.FULL_SWEEP_DEGREES,
+                useCenter = false,
+                topLeft = arcTopLeft,
+                size = arcSize,
+                style = stroke,
+            )
+            return@Canvas
+        }
+
+        val radius = arcSize.width / 2f
+        val capCompensationDeg = if (radius > 0f) {
+            ((strokePx / 2f) / radius) * (180f / Math.PI.toFloat())
+        } else {
+            0f
+        }
+        val segments = BatteryRingProgress.segments(
+            level = clamped,
+            capCompensationDegrees = capCompensationDeg,
+        )
+
+        if (segments.trackSweepDegrees > 0f) {
+            drawArc(
+                color = trackColor,
+                startAngle = segments.trackStartDegrees,
+                sweepAngle = segments.trackSweepDegrees,
+                useCenter = false,
+                topLeft = arcTopLeft,
+                size = arcSize,
+                style = stroke,
+            )
+        }
+        drawArc(
+            color = progressColor,
+            startAngle = segments.progressStartDegrees,
+            sweepAngle = segments.progressSweepDegrees,
+            useCenter = false,
+            topLeft = arcTopLeft,
+            size = arcSize,
+            style = stroke,
         )
     }
 }
