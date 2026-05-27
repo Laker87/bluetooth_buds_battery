@@ -73,7 +73,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="3dp"
                 android:text="@string/left_bud"
-                android:textColor="@color/fast_pair_text_secondary"
+                android:textColor="@color/fast_pair_text_primary"
                 android:textSize="14sp" />
         </LinearLayout>
 
@@ -114,7 +114,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="3dp"
                 android:text="@string/case_battery"
-                android:textColor="@color/fast_pair_text_secondary"
+                android:textColor="@color/fast_pair_text_primary"
                 android:textSize="14sp" />
         </LinearLayout>
 
@@ -154,7 +154,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="3dp"
                 android:text="@string/right_bud"
-                android:textColor="@color/fast_pair_text_secondary"
+                android:textColor="@color/fast_pair_text_primary"
                 android:textSize="14sp" />
         </LinearLayout>
     </LinearLayout>
@@ -196,7 +196,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="1dp"
             android:text="@string/main_battery"
-            android:textColor="@color/fast_pair_text_secondary"
+            android:textColor="@color/fast_pair_text_primary"
             android:textSize="13sp" />
     </LinearLayout>
 </LinearLayout>

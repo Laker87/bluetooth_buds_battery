@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.content.res.Configuration
 import android.app.ForegroundServiceStartNotAllowedException
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -20,7 +21,6 @@ import androidx.core.content.ContextCompat
 import com.laker.btbudsbattery.MainActivity
 import com.laker.btbudsbattery.R
 import com.laker.btbudsbattery.core.AppAccentColor
-import com.laker.btbudsbattery.core.AppTheme
 import com.laker.btbudsbattery.core.AppPreferences
 import com.laker.btbudsbattery.core.BatteryRingProgress
 import com.laker.btbudsbattery.core.FastPairEventBus
@@ -242,6 +242,7 @@ class BluetoothBatteryService : Service() {
             )
         }
 
+        applyExpandedThemeColors(remoteViews)
     }
 
     private fun buildExpandedTitle(snapshot: BluetoothBatterySnapshot): String {
@@ -279,7 +280,7 @@ class BluetoothBatteryService : Service() {
         val density = resources.displayMetrics.density
         val sizePx = (sizeDp * density).toInt().coerceAtLeast(1)
         val progressColor = resolveBatteryRingProgressColor(level)
-        val themeKey = appPreferences.appTheme.name
+        val themeKey = if (isSystemDarkTheme()) "dark" else "light"
         val cacheKey = "$sizePx:${level ?: "null"}:$progressColor:$themeKey"
         synchronized(stateLock) {
             ringBitmapCache[cacheKey]?.let { return it }
@@ -300,7 +301,7 @@ class BluetoothBatteryService : Service() {
             style = Paint.Style.STROKE
             strokeCap = Paint.Cap.ROUND
             this.strokeWidth = strokeWidth
-            color = ContextCompat.getColor(this@BluetoothBatteryService, R.color.fast_pair_ring_track)
+            color = resolveRingTrackColor()
         }
         val innerFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.FILL
@@ -382,10 +383,40 @@ class BluetoothBatteryService : Service() {
     }
 
     private fun resolveRingInnerFillColor(): Int {
-        return when (appPreferences.appTheme) {
-            AppTheme.DARK -> 0x0DFFFFFF
-            AppTheme.LIGHT -> 0x0D000000
+        return if (isSystemDarkTheme()) 0x0DFFFFFF else 0x0D000000
+    }
+
+    private fun resolveRingTrackColor(): Int {
+        val trackRes = if (isSystemDarkTheme()) {
+            R.color.fast_pair_ring_track_dark
+        } else {
+            R.color.fast_pair_ring_track_light
         }
+        return ContextCompat.getColor(this, trackRes)
+    }
+
+    private fun applyExpandedThemeColors(remoteViews: RemoteViews) {
+        val primary = if (isSystemDarkTheme()) {
+            ContextCompat.getColor(this, R.color.fast_pair_text_primary)
+        } else {
+            ContextCompat.getColor(this, R.color.widget_text_primary_light)
+        }
+
+        remoteViews.setTextColor(R.id.fastPairTitle, primary)
+        remoteViews.setTextColor(R.id.leftBatteryValue, primary)
+        remoteViews.setTextColor(R.id.caseBatteryValue, primary)
+        remoteViews.setTextColor(R.id.rightBatteryValue, primary)
+        remoteViews.setTextColor(R.id.singleBatteryValue, primary)
+
+        remoteViews.setTextColor(R.id.leftBatteryLabel, primary)
+        remoteViews.setTextColor(R.id.caseBatteryLabel, primary)
+        remoteViews.setTextColor(R.id.rightBatteryLabel, primary)
+        remoteViews.setTextColor(R.id.singleBatteryLabel, primary)
+    }
+
+    private fun isSystemDarkTheme(): Boolean {
+        val nightMask = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+        return nightMask == Configuration.UI_MODE_NIGHT_YES
     }
 
     private fun createChannels() {

@@ -190,11 +190,7 @@ class BatteryWidgetProvider : AppWidgetProvider() {
                 style = Paint.Style.STROKE
                 strokeCap = Paint.Cap.ROUND
                 this.strokeWidth = strokeWidth
-                color = if (appTheme == AppTheme.DARK) {
-                    ContextCompat.getColor(context, R.color.fast_pair_ring_track)
-                } else {
-                    ContextCompat.getColor(context, R.color.widget_ring_track_light)
-                }
+                color = resolveRingTrackColor(context, appTheme)
             }
             val progressPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 style = Paint.Style.STROKE
@@ -261,6 +257,14 @@ class BatteryWidgetProvider : AppWidgetProvider() {
             }
         }
 
+        private fun resolveRingTrackColor(context: Context, appTheme: AppTheme): Int {
+            val trackRes = when (appTheme) {
+                AppTheme.DARK -> R.color.fast_pair_ring_track_dark
+                AppTheme.LIGHT -> R.color.fast_pair_ring_track_light
+            }
+            return ContextCompat.getColor(context, trackRes)
+        }
+
         private fun shouldUseCompactSingleLayout(
             snapshot: BluetoothBatterySnapshot?,
             options: Bundle?,
@@ -284,25 +288,21 @@ class BatteryWidgetProvider : AppWidgetProvider() {
             } else {
                 ContextCompat.getColor(context, R.color.widget_text_primary_light)
             }
-            val secondary = if (isDark) {
-                ContextCompat.getColor(context, R.color.fast_pair_text_secondary)
-            } else {
-                ContextCompat.getColor(context, R.color.widget_text_secondary_light)
-            }
+
             val backgroundRes = if (isDark) R.drawable.bg_widget_card_dark else R.drawable.bg_widget_card_light
 
             views.setInt(R.id.widgetRoot, "setBackgroundResource", backgroundRes)
 
             views.setTextColor(R.id.widgetTitle, primary)
-            views.setTextColor(R.id.widgetSubtitle, secondary)
+            views.setTextColor(R.id.widgetSubtitle, primary)
             views.setTextColor(R.id.widgetLeftValue, primary)
             views.setTextColor(R.id.widgetCaseValue, primary)
             views.setTextColor(R.id.widgetRightValue, primary)
             views.setTextColor(R.id.widgetSingleValue, primary)
-            views.setTextColor(R.id.widgetLeftLabel, secondary)
-            views.setTextColor(R.id.widgetCaseLabel, secondary)
-            views.setTextColor(R.id.widgetRightLabel, secondary)
-            views.setTextColor(R.id.widgetSingleLabel, secondary)
+            views.setTextColor(R.id.widgetLeftLabel, primary)
+            views.setTextColor(R.id.widgetCaseLabel, primary)
+            views.setTextColor(R.id.widgetRightLabel, primary)
+            views.setTextColor(R.id.widgetSingleLabel, primary)
         }
 
         private const val COMPACT_SINGLE_MAX_WIDTH_DP = 110

@@ -68,6 +68,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -1416,8 +1417,11 @@ private fun formatHistoryDate(millis: Long): String {
 
 @Composable
 private fun batteryTrackColor(): Color {
-    val scheme = MaterialTheme.colorScheme
-    val isLightTheme = scheme.background.luminance() > 0.5f
-    return if (isLightTheme) Color(0xFFC7D0DE) else Color(0xFF3D4455)
+    val isLightTheme = MaterialTheme.colorScheme.background.luminance() > 0.5f
+    return if (isLightTheme) {
+        colorResource(R.color.fast_pair_ring_track_light)
+    } else {
+        colorResource(R.color.fast_pair_ring_track_dark)
+    }
 }
 
