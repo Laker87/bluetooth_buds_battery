@@ -225,7 +225,7 @@ class BatteryWidgetProvider : AppWidgetProvider() {
             }
             canvas.drawArc(
                 bounds,
-                -90f,
+                segments.progressStartDegrees,
                 segments.progressSweepDegrees,
                 false,
                 progressPaint,

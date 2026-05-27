@@ -346,7 +346,7 @@ class BluetoothBatteryService : Service() {
         }
         canvas.drawArc(
             bounds,
-            -90f,
+            segments.progressStartDegrees,
             segments.progressSweepDegrees,
             false,
             progressPaint,
@@ -704,5 +704,4 @@ class BluetoothBatteryService : Service() {
         const val EXTRA_REQUIRE_FOREGROUND = "com.laker.btbudsbattery.extra.REQUIRE_FOREGROUND"
     }
 }
-
 

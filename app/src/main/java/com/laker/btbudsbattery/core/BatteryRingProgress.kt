@@ -15,17 +15,33 @@ object BatteryRingProgress {
         gapDegrees: Float = GAP_DEGREES,
         capCompensationDegrees: Float = 0f,
     ): RingSegments {
-        val progressSweep = progressSweepDegrees(level, fullSweepDegrees)
-        val effectiveGapDegrees = gapDegrees + (capCompensationDegrees * 2f)
-        val trackSweep = (fullSweepDegrees - progressSweep - (effectiveGapDegrees * 2f)).coerceAtLeast(0f)
+        val effectiveGapDegrees = (gapDegrees + (capCompensationDegrees * 2f)).coerceAtLeast(0f)
+        val progressPercentSweep = progressSweepDegrees(level, fullSweepDegrees)
+        val topGapEnd = -90f + (effectiveGapDegrees / 2f)
+        val topGapStart = -90f + fullSweepDegrees - (effectiveGapDegrees / 2f)
+        val progressTrackGapCenter = -90f + progressPercentSweep
+        val progressEnd = progressTrackGapCenter - (effectiveGapDegrees / 2f)
+        val trackStart = progressTrackGapCenter + (effectiveGapDegrees / 2f)
+
+        val progressSweep = (progressEnd - topGapEnd).coerceIn(
+            minimumValue = 0f,
+            maximumValue = (fullSweepDegrees - effectiveGapDegrees).coerceAtLeast(0f),
+        )
+        val trackSweep = if (trackStart < topGapStart) {
+            topGapStart - trackStart
+        } else {
+            0f
+        }
         return RingSegments(
+            progressStartDegrees = topGapEnd,
             progressSweepDegrees = progressSweep,
-            trackStartDegrees = -90f + progressSweep + effectiveGapDegrees,
+            trackStartDegrees = trackStart,
             trackSweepDegrees = trackSweep,
         )
     }
 
     data class RingSegments(
+        val progressStartDegrees: Float,
         val progressSweepDegrees: Float,
         val trackStartDegrees: Float,
         val trackSweepDegrees: Float,
