@@ -304,7 +304,8 @@ class BluetoothBatteryRepositoryImpl(
     private fun parseAppleContinuityScan(result: ScanResult): BluetoothBatterySnapshot? {
         val data = result.scanRecord?.getManufacturerSpecificData(AppleContinuityBatteryParser.APPLE_COMPANY_ID)
         val parsed = AppleContinuityBatteryParser.parse(data) ?: return null
-        val matched = findConnectedDeviceForAdvertisement(result)
+        val exactMatched = findConnectedDeviceForAdvertisement(result)
+        val matched = exactMatched ?: findSingleConnectedDeviceByAdvertisedName(parsed.modelName)
         if (matched == null) {
             Log.d(
                 LOG_TAG,
@@ -331,6 +332,7 @@ class BluetoothBatteryRepositoryImpl(
             LOG_TAG,
             "source=apple_continuity model=${parsed.modelName} code=0x${parsed.modelCode.toString(16)} " +
                 "rssi=${result.rssi} addr=${result.device.address} bind=$address " +
+                "bindMode=${if (exactMatched != null) "address" else "name_fallback"} " +
                 "main=${snapshot.batteryLevel} left=${snapshot.leftLevel} right=${snapshot.rightLevel} " +
                 "case=${snapshot.caseLevel} raw=${data?.toHexString() ?: "null"}",
         )
@@ -704,7 +706,26 @@ class BluetoothBatteryRepositoryImpl(
 
     @SuppressLint("MissingPermission")
     private fun connectedClassicDevices(): List<BluetoothDevice> {
-        val connected = synchronized(cache) {
+        val fromProfiles = if (hasConnectPermission()) {
+            buildList {
+                addAll(runCatching { headsetProxy?.connectedDevices.orEmpty() }.getOrElse { emptyList() })
+                addAll(runCatching { a2dpProxy?.connectedDevices.orEmpty() }.getOrElse { emptyList() })
+            }
+        } else {
+            emptyList()
+        }
+
+        val bondedConnected = if (hasConnectPermission()) {
+            bluetoothAdapter?.bondedDevices
+                ?.asSequence()
+                ?.filter { isDeviceConnected(it) }
+                ?.toList()
+                .orEmpty()
+        } else {
+            emptyList()
+        }
+
+        val fromCache = synchronized(cache) {
             cache.values
                 .asSequence()
                 .filter { it.isConnected }
@@ -715,7 +736,9 @@ class BluetoothBatteryRepositoryImpl(
                 .distinctBy { it.address }
                 .toList()
         }
-        return connected
+        return (fromProfiles + bondedConnected + fromCache)
+            .filter { it.address.isNotBlank() }
+            .distinctBy { it.address }
     }
 
     private fun String.normalizeDeviceName(): String {
@@ -991,4 +1014,3 @@ class BluetoothBatteryRepositoryImpl(
         private const val EXTRA_BATTERY_LEVEL_CASE = "android.bluetooth.device.extra.BATTERY_LEVEL_CASE"
     }
 }
-
