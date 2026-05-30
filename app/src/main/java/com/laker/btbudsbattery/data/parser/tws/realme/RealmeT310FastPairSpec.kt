@@ -12,6 +12,7 @@ object RealmeT310FastPairSpec {
     const val LEVEL_INDEX_LEFT = 10
     const val LEVEL_INDEX_RIGHT = 11
     const val LEVEL_INDEX_CASE = 12
+    val LEVEL_MARKER = byteArrayOf(0x11, 0x55, 0x33)
 
     val INVALID_LEVELS = setOf(0x7F, 0xFF)
 }
